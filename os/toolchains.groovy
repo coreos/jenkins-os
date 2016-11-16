@@ -94,13 +94,13 @@ enter sudo ${S}/build_toolchains \
     stage('Post-build') {
         fingerprint 'src/build/catalyst/packages/coreos-toolchains/**/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2'
     }
+}
 
-    stage('Downstream') {
-        build job: 'board/packages-matrix', parameters: [
-            string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-            string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
-        ]
-    }
+stage('Downstream') {
+    build job: 'board/packages-matrix', parameters: [
+        string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+        string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+        string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+    ]
 }

@@ -103,19 +103,17 @@ enter ccache --show-stats
     }
 }
 
-node('coreos && sudo') {
-    stage('Build') {
-        matrix_map.failFast = true
-        parallel matrix_map
-    }
+stage('Build') {
+    matrix_map.failFast = true
+    parallel matrix_map
+}
 
-    stage('Downstream') {
-        if (false)  /* Disable downstream jobs for now.  */
-        build job: 'image-matrix', parameters: [
-            string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-            string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
-        ]
-    }
+stage('Downstream') {
+    if (false)  /* Disable downstream jobs for now.  */
+    build job: 'image-matrix', parameters: [
+        string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+        string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+        string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+    ]
 }

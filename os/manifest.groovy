@@ -20,6 +20,8 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest""")
     ])
 ])
 
+def dprops = [:]  /* Store properties read from an artifact later.  */
+
 node('coreos && sudo') {
     stage('SCM') {
         checkout scm: [
@@ -149,32 +151,30 @@ finish "${COREOS_BUILD_ID}"
 
     stage('Post-build') {
         archiveArtifacts 'manifest.properties'
-    }
 
-    stage('Downstream') {
-        /* Plugins probably exist for using parameters in properties files.  */
-        def dparams = [:]
         for (line in readFile('manifest.properties').trim().split("\n")) {
             def tokens = line.tokenize(" =")
-            dparams[tokens[0]] = tokens[1]
+            dprops[tokens[0]] = tokens[1]
         }
-
-        parallel failFast: false,
-            sdk: {
-                build job: 'sdk', parameters: [
-                    string(name: 'COREOS_OFFICIAL', value: dparams.COREOS_OFFICIAL),
-                    string(name: 'MANIFEST_NAME', value: dparams.MANIFEST_NAME),
-                    string(name: 'MANIFEST_REF', value: dparams.MANIFEST_REF),
-                    string(name: 'MANIFEST_URL', value: dparams.MANIFEST_URL)
-                ]
-            },
-            toolchains: {
-                build job: 'toolchains', parameters: [
-                    string(name: 'COREOS_OFFICIAL', value: dparams.COREOS_OFFICIAL),
-                    string(name: 'MANIFEST_NAME', value: dparams.MANIFEST_NAME),
-                    string(name: 'MANIFEST_REF', value: dparams.MANIFEST_REF),
-                    string(name: 'MANIFEST_URL', value: dparams.MANIFEST_URL)
-                ]
-            }
     }
+}
+
+stage('Downstream') {
+    parallel failFast: false,
+        sdk: {
+            build job: 'sdk', parameters: [
+                string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
+                string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
+                string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
+                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL)
+            ]
+        },
+        toolchains: {
+            build job: 'toolchains', parameters: [
+                string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
+                string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
+                string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
+                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL)
+            ]
+        }
 }
