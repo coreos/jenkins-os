@@ -132,7 +132,6 @@ stage('Build') {
 }
 
 stage('Downstream') {
-    if (false)  /* Disable downstream jobs for now.  */
     parallel failFast: false,
         'board-vm-matrix': {
             build job: 'vm-matrix', parameters: [
@@ -141,7 +140,8 @@ stage('Downstream') {
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
             ]
-        },
+        }
+  /* Disable downstream kola jobs for now.
         'kola-qemu-amd64': {
             build job: '../kola/qemu', parameters: [
                 string(name: 'BOARD', value: 'amd64-usr'),
@@ -151,4 +151,5 @@ stage('Downstream') {
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
             ]
         }
+  */
 }
