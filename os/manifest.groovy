@@ -159,7 +159,6 @@ finish "${COREOS_BUILD_ID}"
             dparams[tokens[0]] = tokens[1]
         }
 
-        if (false)  /* Disable downstream jobs for now.  */
         parallel failFast: false,
             sdk: {
                 build job: 'sdk', parameters: [
@@ -170,6 +169,7 @@ finish "${COREOS_BUILD_ID}"
                 ]
             },
             toolchains: {
+                if (false)  /* Disable downstream jobs for now.  */
                 build job: 'toolchains', parameters: [
                     string(name: 'COREOS_OFFICIAL', value: dparams.COREOS_OFFICIAL),
                     string(name: 'MANIFEST_NAME', value: dparams.MANIFEST_NAME),
