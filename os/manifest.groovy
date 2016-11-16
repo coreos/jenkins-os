@@ -169,7 +169,6 @@ finish "${COREOS_BUILD_ID}"
                 ]
             },
             toolchains: {
-                if (false)  /* Disable downstream jobs for now.  */
                 build job: 'toolchains', parameters: [
                     string(name: 'COREOS_OFFICIAL', value: dparams.COREOS_OFFICIAL),
                     string(name: 'MANIFEST_NAME', value: dparams.MANIFEST_NAME),
