@@ -15,14 +15,65 @@ properties([
     ])
 ])
 
+/* The VM image format map is keyed on ${BOARD}.  */
+def format_list = ['amd64-usr': '''
+qemu
+qemu_uefi
+ami
+ami_vmdk
+pxe
+iso
+openstack
+openstack_mini
+parallels
+rackspace
+rackspace_onmetal
+rackspace_vhd
+vagrant
+vagrant_parallels
+vagrant_vmware_fusion
+virtualbox
+vmware
+vmware_ova
+vmware_insecure
+xen
+gce
+brightbox
+cloudstack
+cloudstack_vhd
+digitalocean
+exoscale
+azure
+hyperv
+niftycloud
+cloudsigma
+packet
+''',
+                   'arm64-usr': '''
+qemu_uefi
+pxe
+openstack
+openstack_mini
+''']
+
+/* The group list map is keyed on ${COREOS_OFFICIAL}.  */
+def group_list = ['0': ['developer'],
+                  '1': ['alpha', 'beta', 'stable']]
+
 /* Construct a matrix of build variation closures.  */
 def matrix_map = [:]
 for (board in ['amd64-usr', 'arm64-usr']) {
-    for (group in group_list(params.COREOS_OFFICIAL)) {
-        for (format in format_list(board)) {
-            def BOARD = board  /* This MUST use fresh variables per iteration.  */
-            def FORMAT = format
-            def GROUP = group
+    def BOARD = board  /* This MUST use fresh variables per iteration.  */
+
+    /* Force this as an ArrayList for serializability, or Jenkins explodes.  */
+    ArrayList<String> board_format_list = format_list[BOARD].trim().split('\n')
+
+    for (group in group_list[params.COREOS_OFFICIAL]) {
+        def GROUP = group  /* This MUST use fresh variables per iteration.  */
+
+        for (format in board_format_list) {
+            def FORMAT = format  /* This MUST use fresh variables per iteration.  */
+
             matrix_map["${GROUP}-${BOARD}-${FORMAT}"] = {
                 node('coreos && sudo') {
                     ws("${env.WORKSPACE}/executor${env.EXECUTOR_NUMBER}") {
@@ -138,8 +189,16 @@ script image_to_vm.sh --board=${BOARD} \
 }
 
 stage('Build') {
-    matrix_map.failFast = true
-    parallel matrix_map
+    if (true) {  /* Stupidly run everything in sequence due to lack of worker nodes.  */
+        /* Make this ugly for serializability again.  */
+        ArrayList<Closure> build_vm_list = matrix_map.values()
+        for (int i = 0; i < build_vm_list.size(); i++) {
+            build_vm_list[i]()
+        }
+    } else {
+        matrix_map.failFast = true
+        parallel matrix_map
+    }
 }
 
 stage('Downstream') {
@@ -150,53 +209,4 @@ stage('Downstream') {
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
     ]
-}
-
-/* The VM image format map is keyed on ${BOARD}.  */
-def format_list(board) {
-    ['amd64-usr': '''
-qemu
-qemu_uefi
-ami
-ami_vmdk
-pxe
-iso
-openstack
-openstack_mini
-parallels
-rackspace
-rackspace_onmetal
-rackspace_vhd
-vagrant
-vagrant_parallels
-vagrant_vmware_fusion
-virtualbox
-vmware
-vmware_ova
-vmware_insecure
-xen
-gce
-brightbox
-cloudstack
-cloudstack_vhd
-digitalocean
-exoscale
-azure
-hyperv
-niftycloud
-cloudsigma
-packet
-''',
-     'arm64-usr': '''
-qemu_uefi
-pxe
-openstack
-openstack_mini
-'''][board].trim().split('\n')
-}
-
-/* The group list map is keyed on ${COREOS_OFFICIAL}.  */
-def group_list(official) {
-    ['0': ['developer'],
-     '1': ['alpha', 'beta', 'stable']][official]
 }
