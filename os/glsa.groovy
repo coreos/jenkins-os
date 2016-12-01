@@ -29,10 +29,11 @@ GCLIENT_ROOT=$PWD ; export GCLIENT_ROOT
 declare -a added modified other
 while read change file
 do
-        [ "x$file" != xmetadata/glsa/timestamp.chk ] || continue
+        [[ $file == metadata/glsa/glsa-*.xml ]] || continue
+        url="https://security.gentoo.org/glsa/${file:19:-4}"
         case "$change" in
-            A) added+=("$file") ;;
-            M) modified+=("$file") ;;
+            A) added+=("$url") ;;
+            M) modified+=("$url") ;;
             *) other+=("($change) $file") ;;
         esac
 done < <(git -C portage-stable status --short)
@@ -44,7 +45,7 @@ done < <(git -C portage-stable status --short)
 # Write notification information for new GLSAs as the most important.
 [ -n "${added[*]}" ] &&
     echo -e 'There are new GLSAs!\n' >> notify.txt &&
-    [ ! -s status.txt ] && echo -n good > status.txt
+    [ ! -s status.txt ] && echo -n danger > status.txt
 for file in "${added[@]}"
 do
         echo "  * $file" >> notify.txt
@@ -89,6 +90,7 @@ exit 0  # Do not return a non-zero $? from above.
         def color = readFile 'status.txt'
         def message = readFile 'notify.txt'
         if (message)
-            slackSend color: color ?: '#C0C0C0', message: message
+            slackSend color: color ?: '#C0C0C0', message: """${message}\n
+Run `update_ebuilds --commit metadata/glsa` in the SDK to update GLSAs."""
     }
 }
