@@ -6,6 +6,9 @@ properties([pipelineTriggers([cron('H 14 * * *')])])
 node('coreos') {
     stage('SCM') {
         git url: 'https://github.com/coreos/scripts.git'
+        dir('coreos-overlay') {
+            git url: 'https://github.com/coreos/coreos-overlay.git'
+        }
         dir('portage-stable') {
             git url: 'https://github.com/coreos/portage-stable.git'
         }
@@ -13,6 +16,14 @@ node('coreos') {
 
     stage('Check') {
         sh '''#!/bin/bash -ex
+
+function glsa_affects_us() {
+        [ '' $(sed -n '
+/<package / {
+ s,.* name="\\([^"]*\\)".*, -o -e portage-stable/\\1 -o -e coreos-overlay/\\1,p
+}
+' "$1") ]
+}
 
 # Trick the SDK into allowing us to run an isolated script.
 echo COREOS_BUILD_ID= > version.txt
@@ -30,6 +41,7 @@ declare -a added modified other
 while read change file
 do
         [[ $file == metadata/glsa/glsa-*.xml ]] || continue
+        glsa_affects_us "portage-stable/$file" || continue
         url="https://security.gentoo.org/glsa/${file:19:-4}"
         case "$change" in
             A) added+=("$url") ;;
@@ -90,7 +102,7 @@ exit 0  # Do not return a non-zero $? from above.
         def color = readFile 'status.txt'
         def message = readFile 'notify.txt'
         if (message)
-            slackSend color: color ?: '#C0C0C0', message: """${message}\n
+            slackSend color: color ?: '#C0C0C0', message: """${message}
 Run `update_ebuilds --commit metadata/glsa` in the SDK to update GLSAs."""
     }
 }
