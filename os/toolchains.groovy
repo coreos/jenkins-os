@@ -57,10 +57,6 @@ node('coreos && sudo') {
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-if [[ -x ./src/scripts/build_jobs/02_toolchains.sh ]]; then
-  exec ./src/scripts/build_jobs/02_toolchains.sh
-fi
-
 enter() {
   ./bin/cork enter --experimental -- "$@"
 }

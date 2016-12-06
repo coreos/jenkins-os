@@ -111,10 +111,6 @@ sudo rm -rf tmp
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-if [[ -x ./src/scripts/build_jobs/05_vm.sh ]]; then
-  exec ./src/scripts/build_jobs/05_vm.sh
-fi
-
 # check that the matrix didn't go bananas
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   [[ "${GROUP}" != developer ]]
@@ -133,11 +129,6 @@ enter() {
 
 source .repo/manifests/version.txt
 export COREOS_BUILD_ID
-
-if [[ "${COREOS_VERSION}" == 1010.* && "${BOARD}" == arm64-usr ]]; then
-  echo "SKIPPING ARM"
-  exit 0
-fi
 
 # Set up GPG for signing images
 export GNUPGHOME="${PWD}/.gnupg"

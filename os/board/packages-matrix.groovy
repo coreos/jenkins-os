@@ -49,10 +49,6 @@ for (board in ['amd64-usr', 'arm64-usr']) {
                   --manifest-name "${MANIFEST_NAME}" \
                   -- --toolchain_boards=${BOARD}
 
-if [[ -x ./src/scripts/build_jobs/03_packages.sh ]]; then
-  exec ./src/scripts/build_jobs/03_packages.sh
-fi
-
 # use a ccache dir that persists across sdk recreations
 # XXX: alternatively use a ccache dir that is usable by all jobs on a given node.
 mkdir -p .cache/ccache
@@ -70,11 +66,6 @@ script() {
 
 source .repo/manifests/version.txt
 export COREOS_BUILD_ID
-
-if [[ "${COREOS_VERSION}" == 1010.* && "${BOARD}" == arm64-usr ]]; then
-  echo "SKIPPING ARM"
-  exit 0
-fi
 
 # figure out if ccache is doing us any good in this scheme
 enter ccache --zero-stats

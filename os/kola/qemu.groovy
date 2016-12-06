@@ -79,12 +79,7 @@ if [[ "${BOARD}" == arm64* ]]; then
   enter emerge-arm64-usr --nodeps -qugKN sys-firmware/edk2-armvirt
 fi
 
-kola=kola
-if [[ "${COREOS_VERSION}" == 1010.* ]]; then
-  kola=/mnt/host/source/bin/kola
-fi
-
-enter sudo timeout --signal=SIGQUIT 30m $kola run --board="${BOARD}" \
+enter sudo timeout --signal=SIGQUIT 30m kola run --board="${BOARD}" \
                      --parallel=2 \
                      --qemu-image="/mnt/host/source/tmp/coreos_production_image.bin" \
                      --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"

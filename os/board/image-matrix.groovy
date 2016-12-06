@@ -51,10 +51,6 @@ for (board in ['amd64-usr', 'arm64-usr']) {
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-if [[ -x ./src/scripts/build_jobs/04_images.sh ]]; then
-  exec ./src/scripts/build_jobs/04_images.sh
-fi
-
 # first thing, clear out old images
 sudo rm -rf src/build
 
@@ -65,11 +61,6 @@ script() {
 
 source .repo/manifests/version.txt
 export COREOS_BUILD_ID
-
-if [[ "${COREOS_VERSION}" == 1010.* && "${BOARD}" == arm64-usr ]]; then
-  echo "SKIPPING ARM"
-  exit 0
-fi
 
 # Set up GPG for signing images
 export GNUPGHOME="${PWD}/.gnupg"
