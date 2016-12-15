@@ -180,16 +180,23 @@ script image_to_vm.sh --board=${BOARD} \
 }
 
 stage('Build') {
-    if (true) {  /* Stupidly run everything in sequence due to lack of worker nodes.  */
+    if (true) {  /* Limit the parallel builds to avoid scheduling failures.  */
+        def parallel_max = 2
         /* Make this ugly for serializability again.  */
-        ArrayList<Closure> build_vm_list = matrix_map.values()
-        for (int i = 0; i < build_vm_list.size(); i++) {
-            build_vm_list[i]()
+        ArrayList<Closure> vm_builds = matrix_map.values()
+        matrix_map = [:]
+        for (int j = 0; j < parallel_max; j++) {
+            def MOD = j  /* This MUST use fresh variables per iteration.  */
+            matrix_map["job_mod_${MOD}"] = {
+                for (int i = MOD; i < vm_builds.size(); i += parallel_max) {
+                    vm_builds[i]()
+                }
+            }
         }
-    } else {
-        matrix_map.failFast = true
-        parallel matrix_map
     }
+
+    matrix_map.failFast = true
+    parallel matrix_map
 }
 
 stage('Downstream') {
