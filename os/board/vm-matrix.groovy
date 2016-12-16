@@ -200,7 +200,6 @@ stage('Build') {
 }
 
 stage('Downstream') {
-    if (false)  /* Disable downstream jobs for now.  */
     build job: '../kola/gce', parameters: [
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
