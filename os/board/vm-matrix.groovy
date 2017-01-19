@@ -203,7 +203,7 @@ stage('Build') {
 
 stage('Downstream') {
     if (params.BOARD == 'amd64-usr')
-        build job: '../kola/gce', parameters: [
+        build job: '../kola/gce', propagate: false, parameters: [
             string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
             string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
             string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

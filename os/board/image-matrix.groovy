@@ -132,7 +132,7 @@ stage('Downstream') {
             ]
         },
         'kola-qemu': {
-            build job: '../kola/qemu', parameters: [
+            build job: '../kola/qemu', propagate: false, parameters: [
                 string(name: 'BOARD', value: params.BOARD),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
