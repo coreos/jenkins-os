@@ -4,6 +4,9 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        choice(name: 'BOARD',
+               choices: "amd64-usr\narm64-usr",
+               description: 'Target board to build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -15,30 +18,26 @@ properties([
     ])
 ])
 
-/* Construct a matrix of build variation closures.  */
-def matrix_map = [:]
-for (board in ['amd64-usr', 'arm64-usr']) {
-    def BOARD = board  /* This MUST use fresh variables per iteration.  */
-    matrix_map[BOARD] = {
-        node('coreos && sudo') {
-            ws("${env.WORKSPACE}/${BOARD}") {
-                step([$class: 'CopyArtifact',
-                      fingerprintArtifacts: true,
-                      projectName: '/mantle/master-builder',
-                      selector: [$class: 'StatusBuildSelector',
-                                 stable: false]])
+node('coreos && sudo') {
+    ws("${env.WORKSPACE}/${params.BOARD}") {
+        stage('Build') {
+            step([$class: 'CopyArtifact',
+                  fingerprintArtifacts: true,
+                  projectName: '/mantle/master-builder',
+                  selector: [$class: 'StatusBuildSelector',
+                             stable: false]])
 
-                withCredentials([
-                    [$class: 'FileBinding',
-                     credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-                ]) {
-                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_REF=${params.MANIFEST_REF}",
-                             "MANIFEST_URL=${params.MANIFEST_URL}",
-                             "BOARD=${BOARD}"]) {
-                        sh '''#!/bin/bash -ex
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "BOARD=${params.BOARD}"]) {
+                    sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
@@ -85,22 +84,19 @@ script build_packages --board=${BOARD} \
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */
-                    }
                 }
-
-                fingerprint "chroot/build/${BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
             }
+        }
+
+        stage('Post-build') {
+            fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
         }
     }
 }
 
-stage('Build') {
-    matrix_map.failFast = true
-    parallel matrix_map
-}
-
 stage('Downstream') {
     build job: 'image-matrix', parameters: [
+        string(name: 'BOARD', value: params.BOARD),
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

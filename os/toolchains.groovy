@@ -93,10 +93,23 @@ enter sudo ${S}/build_toolchains \
 }
 
 stage('Downstream') {
-    build job: 'board/packages-matrix', parameters: [
-        string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-        string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-        string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
-    ]
+    parallel failFast: false,
+        'board-packages-matrix-amd64-usr': {
+            build job: 'board/packages-matrix', parameters: [
+                string(name: 'BOARD', value: 'amd64-usr'),
+                string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+            ]
+        },
+        'board-packages-matrix-arm64-usr': {
+            build job: 'board/packages-matrix', parameters: [
+                string(name: 'BOARD', value: 'arm64-usr'),
+                string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+            ]
+        }
 }

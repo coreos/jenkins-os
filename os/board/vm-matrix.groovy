@@ -4,6 +4,9 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        choice(name: 'BOARD',
+               choices: "amd64-usr\narm64-usr",
+               description: 'Target board to build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -15,8 +18,8 @@ properties([
     ])
 ])
 
-/* The VM image format map is keyed on ${BOARD}.  */
-def format_list = ['amd64-usr': '''
+/* The VM format list mapping is keyed on ${BOARD}.  */
+def format_map = ['amd64-usr': '''
 qemu
 qemu_uefi
 ami
@@ -56,49 +59,47 @@ openstack
 openstack_mini
 ''']
 
-/* The group list map is keyed on ${COREOS_OFFICIAL}.  */
-def group_list = ['0': ['developer'],
-                  '1': ['alpha', 'beta', 'stable']]
+/* The group list mapping is keyed on ${COREOS_OFFICIAL}.  */
+def group_map = ['0': ['developer'],
+                 '1': ['alpha', 'beta', 'stable']]
 
 /* Construct a matrix of build variation closures.  */
 def matrix_map = [:]
-for (board in ['amd64-usr', 'arm64-usr']) {
-    def BOARD = board  /* This MUST use fresh variables per iteration.  */
 
-    /* Force this as an ArrayList for serializability, or Jenkins explodes.  */
-    ArrayList<String> board_format_list = format_list[BOARD].trim().split('\n')
+/* Force this as an ArrayList for serializability, or Jenkins explodes.  */
+ArrayList<String> format_list = format_map[params.BOARD].trim().split('\n')
 
-    for (group in group_list[params.COREOS_OFFICIAL]) {
-        def GROUP = group  /* This MUST use fresh variables per iteration.  */
+for (group in group_map[params.COREOS_OFFICIAL]) {
+    def GROUP = group  /* This MUST use fresh variables per iteration.  */
 
-        for (format in board_format_list) {
-            def FORMAT = format  /* This MUST use fresh variables per iteration.  */
+    for (format in format_list) {
+        def FORMAT = format  /* This MUST use fresh variables per iteration.  */
 
-            matrix_map["${GROUP}-${BOARD}-${FORMAT}"] = {
-                node('coreos && sudo') {
-                    ws("${env.WORKSPACE}/executor${env.EXECUTOR_NUMBER}") {
-                        step([$class: 'CopyArtifact',
-                              fingerprintArtifacts: true,
-                              projectName: '/mantle/master-builder',
-                              selector: [$class: 'StatusBuildSelector',
-                                         stable: false]])
+        matrix_map["${GROUP}-${FORMAT}"] = {
+            node('coreos && sudo') {
+                ws("${env.WORKSPACE}/executor${env.EXECUTOR_NUMBER}") {
+                    step([$class: 'CopyArtifact',
+                          fingerprintArtifacts: true,
+                          projectName: '/mantle/master-builder',
+                          selector: [$class: 'StatusBuildSelector',
+                                     stable: false]])
 
-                        withCredentials([
-                            [$class: 'FileBinding',
-                             credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
-                             variable: 'GPG_SECRET_KEY_FILE'],
-                            [$class: 'FileBinding',
-                             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-                             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-                        ]) {
-                            withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                                     "BOARD=${BOARD}",
-                                     "FORMAT=${FORMAT}",
-                                     "GROUP=${GROUP}"]) {
-                                sh '''#!/bin/bash -ex
+                    withCredentials([
+                        [$class: 'FileBinding',
+                         credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+                         variable: 'GPG_SECRET_KEY_FILE'],
+                        [$class: 'FileBinding',
+                         credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                         variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                    ]) {
+                        withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                                 "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                                 "MANIFEST_REF=${params.MANIFEST_REF}",
+                                 "MANIFEST_URL=${params.MANIFEST_URL}",
+                                 "BOARD=${params.BOARD}",
+                                 "FORMAT=${FORMAT}",
+                                 "GROUP=${GROUP}"]) {
+                            sh '''#!/bin/bash -ex
 
 rm -f gce.properties
 sudo rm -rf tmp
@@ -168,11 +169,10 @@ script image_to_vm.sh --board=${BOARD} \
                       --upload_root="${root}" \
                       --upload ${dlroot}
 '''  /* Editor quote safety: ' */
-                            }
                         }
-
-                        fingerprint "chroot/build/${BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
                     }
+
+                    fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
                 }
             }
         }
@@ -187,7 +187,7 @@ stage('Build') {
         matrix_map = [:]
         for (int j = 0; j < parallel_max; j++) {
             def MOD = j  /* This MUST use fresh variables per iteration.  */
-            matrix_map["job_mod_${MOD}"] = {
+            matrix_map["vm_${MOD}"] = {
                 for (int i = MOD; i < vm_builds.size(); i += parallel_max) {
                     vm_builds[i]()
                 }
@@ -200,10 +200,11 @@ stage('Build') {
 }
 
 stage('Downstream') {
-    build job: '../kola/gce', parameters: [
-        string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-        string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-        string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
-    ]
+    if (params.BOARD == 'amd64-usr')
+        build job: '../kola/gce', parameters: [
+            string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+        ]
 }
