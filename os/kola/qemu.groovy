@@ -79,6 +79,11 @@ if [[ "${BOARD}" == arm64* ]]; then
   enter emerge-arm64-usr --nodeps -qugKN sys-firmware/edk2-armvirt
 fi
 
+# copy all of the latest mantle binaries into the chroot
+sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
+sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
+sudo cp -t chroot/usr/bin bin/[b-z]*
+
 enter sudo timeout --signal=SIGQUIT 30m kola run --board="${BOARD}" \
                      --parallel=2 \
                      --qemu-image="/mnt/host/source/tmp/coreos_production_image.bin" \
