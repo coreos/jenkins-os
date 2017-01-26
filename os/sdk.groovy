@@ -72,10 +72,10 @@ mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
 # Wipe all of catalyst or just clear out old tarballs taking up space
-if [[ "${COREOS_OFFICIAL:-0}" -eq 1 || "$USE_CACHE" == false ]]; then
-    sudo rm -rf src/build/catalyst
-fi
 sudo rm -rf src/build/catalyst/builds
+if [[ "${COREOS_OFFICIAL:-0}" -eq 1 || "$USE_CACHE" == false ]]; then
+    sudo rm -rf src/build
+fi
 
 S=/mnt/host/source/src/scripts
 enter ${S}/update_chroot
@@ -83,6 +83,9 @@ enter sudo emerge -uv --jobs=2 catalyst
 enter sudo ${S}/bootstrap_sdk \
     --sign buildbot@coreos.com --sign_digests buildbot@coreos.com \
     --upload --upload_root gs://builds.developer.core-os.net
+
+# Free some disk space only on success, for debugging failures
+sudo rm -rf src/build/catalyst/builds
 '''  /* Editor quote safety: ' */
             }
         }

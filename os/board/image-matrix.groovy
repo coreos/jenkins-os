@@ -113,6 +113,9 @@ fi
 
         stage('Post-build') {
             fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/${params.BOARD}/latest/*"
+            dir('src/build') {
+                deleteDir()
+            }
         }
     }
 }

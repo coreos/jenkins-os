@@ -77,29 +77,28 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
 
         matrix_map["${GROUP}-${FORMAT}"] = {
             node('coreos && sudo') {
-                ws("${env.WORKSPACE}/executor${env.EXECUTOR_NUMBER}") {
-                    step([$class: 'CopyArtifact',
-                          fingerprintArtifacts: true,
-                          projectName: '/mantle/master-builder',
-                          selector: [$class: 'StatusBuildSelector',
-                                     stable: false]])
+                step([$class: 'CopyArtifact',
+                      fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: [$class: 'StatusBuildSelector',
+                                 stable: false]])
 
-                    withCredentials([
-                        [$class: 'FileBinding',
-                         credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
-                         variable: 'GPG_SECRET_KEY_FILE'],
-                        [$class: 'FileBinding',
-                         credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-                         variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-                    ]) {
-                        withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                                 "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                                 "MANIFEST_REF=${params.MANIFEST_REF}",
-                                 "MANIFEST_URL=${params.MANIFEST_URL}",
-                                 "BOARD=${params.BOARD}",
-                                 "FORMAT=${FORMAT}",
-                                 "GROUP=${GROUP}"]) {
-                            sh '''#!/bin/bash -ex
+                withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+                     variable: 'GPG_SECRET_KEY_FILE'],
+                    [$class: 'FileBinding',
+                     credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                ]) {
+                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_URL=${params.MANIFEST_URL}",
+                             "BOARD=${params.BOARD}",
+                             "FORMAT=${FORMAT}",
+                             "GROUP=${GROUP}"]) {
+                        sh '''#!/bin/bash -ex
 
 rm -f gce.properties
 sudo rm -rf tmp
@@ -169,10 +168,12 @@ script image_to_vm.sh --board=${BOARD} \
                       --upload_root="${root}" \
                       --upload ${dlroot}
 '''  /* Editor quote safety: ' */
-                        }
                     }
+                }
 
-                    fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
+                fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
+                dir('tmp') {
+                    deleteDir()
                 }
             }
         }
