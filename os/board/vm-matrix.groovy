@@ -38,6 +38,7 @@ vagrant_vmware_fusion
 virtualbox
 vmware
 vmware_ova
+vmware_raw
 vmware_insecure
 xen
 gce
