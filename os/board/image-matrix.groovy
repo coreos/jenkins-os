@@ -78,7 +78,7 @@ script setup_board --board=${BOARD} \
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   GROUP=stable
-  UPLOAD=gs://builds.release.core-os.net/stable
+  UPLOAD=gs://builds.release.core-os.net/unsigned
   script set_official --board=${BOARD} --official
 else
   GROUP=developer
@@ -94,21 +94,6 @@ script build_image --board=${BOARD} \
                    --sign_digests=buildbot@coreos.com \
                    --upload_root=${UPLOAD} \
                    --upload prod container
-
-if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  script image_set_group --board=${BOARD} \
-                         --group=alpha \
-                         --sign=buildbot@coreos.com \
-                         --sign_digests=buildbot@coreos.com \
-                         --upload_root=gs://builds.release.core-os.net/alpha \
-                         --upload
-  script image_set_group --board=${BOARD} \
-                         --group=beta \
-                         --sign=buildbot@coreos.com \
-                         --sign_digests=buildbot@coreos.com \
-                         --upload_root=gs://builds.release.core-os.net/beta \
-                         --upload
-fi
 '''  /* Editor quote safety: ' */
                 }
             }
@@ -126,14 +111,23 @@ fi
 stage('Downstream') {
     parallel failFast: false,
         'board-vm-matrix': {
-            build job: 'vm-matrix', parameters: [
-                string(name: 'BOARD', value: params.BOARD),
-                string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
+            if (params.COREOS_OFFICIAL == '1')
+                build job: 'sign-image', parameters: [
+                    string(name: 'BOARD', value: params.BOARD),
+                    string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                    string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+            else
+                build job: 'vm-matrix', parameters: [
+                    string(name: 'BOARD', value: params.BOARD),
+                    string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                    string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                    string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
         },
         'kola-qemu': {
             build job: '../kola/qemu', propagate: false, parameters: [

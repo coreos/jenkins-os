@@ -63,7 +63,7 @@ script() {
 source .repo/manifests/version.txt
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/stable"
+  root="gs://builds.release.core-os.net/unsigned"
 else
   root="gs://builds.developer.core-os.net"
 fi
