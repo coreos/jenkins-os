@@ -14,7 +14,10 @@ properties([
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         choice(name: 'COREOS_OFFICIAL',
-               choices: "0\n1")
+               choices: "0\n1"),
+        string(name: 'PIPELINE_BRANCH',
+               defaultValue: 'master',
+               description: 'Branch to use for fetching the pipeline jobs')
     ])
 ])
 
@@ -128,7 +131,8 @@ stage('Downstream') {
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },
         'kola-qemu': {
@@ -137,7 +141,8 @@ stage('Downstream') {
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL)
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
 }

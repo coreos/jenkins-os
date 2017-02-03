@@ -11,7 +11,10 @@ properties([
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         choice(name: 'COREOS_OFFICIAL',
-               choices: "0\n1")
+               choices: "0\n1"),
+        string(name: 'PIPELINE_BRANCH',
+               defaultValue: 'master',
+               description: 'Branch to use for fetching the pipeline jobs')
     ])
 ])
 

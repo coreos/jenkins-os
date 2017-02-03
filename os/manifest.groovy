@@ -12,11 +12,14 @@ properties([
     parameters([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',
-               description: 'Branch or tag to build'),
+               description: 'Manifest branch or tag to build'),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
-https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest""")
+https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest"""),
+        string(name: 'PIPELINE_BRANCH',
+               defaultValue: 'master',
+               description: 'Branch to use for fetching the pipeline jobs')
     ])
 ])
 
@@ -166,7 +169,8 @@ stage('Downstream') {
                 string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL)
+                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },
         toolchains: {
@@ -174,7 +178,8 @@ stage('Downstream') {
                 string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL)
+                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
 }
