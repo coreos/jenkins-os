@@ -84,7 +84,7 @@ sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
 sudo cp -t chroot/usr/bin bin/[b-z]*
 
-enter sudo timeout --signal=SIGQUIT 30m kola run --board="${BOARD}" \
+enter sudo timeout --signal=SIGQUIT 60m kola run --board="${BOARD}" \
                      --parallel=2 \
                      --qemu-image="/mnt/host/source/tmp/coreos_production_image.bin" \
                      --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
