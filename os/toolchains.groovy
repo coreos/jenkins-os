@@ -111,6 +111,7 @@ stage('Downstream') {
             ]
         },
         'board-packages-matrix-arm64-usr': {
+            sleep time: 1, unit: 'MINUTES'
             build job: 'board/packages-matrix', parameters: [
                 string(name: 'BOARD', value: 'arm64-usr'),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
