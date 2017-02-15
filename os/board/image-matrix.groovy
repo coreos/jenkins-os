@@ -78,7 +78,7 @@ script setup_board --board=${BOARD} \
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   GROUP=stable
-  UPLOAD=gs://builds.release.core-os.net/unsigned
+  UPLOAD=gs://builds.release.core-os.net/stable
   script set_official --board=${BOARD} --official
 else
   GROUP=developer
@@ -94,6 +94,21 @@ script build_image --board=${BOARD} \
                    --sign_digests=buildbot@coreos.com \
                    --upload_root=${UPLOAD} \
                    --upload prod container
+
+if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
+  script image_set_group --board=${BOARD} \
+                         --group=alpha \
+                         --sign=buildbot@coreos.com \
+                         --sign_digests=buildbot@coreos.com \
+                         --upload_root=gs://builds.release.core-os.net/alpha \
+                         --upload
+  script image_set_group --board=${BOARD} \
+                         --group=beta \
+                         --sign=buildbot@coreos.com \
+                         --sign_digests=buildbot@coreos.com \
+                         --upload_root=gs://builds.release.core-os.net/beta \
+                         --upload
+fi
 '''  /* Editor quote safety: ' */
                 }
             }
@@ -111,7 +126,7 @@ script build_image --board=${BOARD} \
 stage('Downstream') {
     parallel failFast: false,
         'board-vm-matrix': {
-            if (params.COREOS_OFFICIAL == '1')
+            if (false && params.COREOS_OFFICIAL == '1')
                 build job: 'sign-image', parameters: [
                     string(name: 'BOARD', value: params.BOARD),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
