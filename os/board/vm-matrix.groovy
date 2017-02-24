@@ -80,7 +80,7 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
         def FORMAT = format  /* This MUST use fresh variables per iteration.  */
 
         matrix_map["${GROUP}-${FORMAT}"] = {
-            node('coreos && sudo') {
+            node('coreos && amd64 && sudo') {
                 step([$class: 'CopyArtifact',
                       fingerprintArtifacts: true,
                       projectName: '/mantle/master-builder',

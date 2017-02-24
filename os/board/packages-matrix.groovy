@@ -21,7 +21,7 @@ properties([
     ])
 ])
 
-node('coreos && sudo') {
+node('coreos && amd64 && sudo') {
     ws("${env.WORKSPACE}/${params.BOARD}") {
         stage('Build') {
             step([$class: 'CopyArtifact',

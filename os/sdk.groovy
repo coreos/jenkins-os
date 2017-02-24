@@ -24,7 +24,7 @@ properties([
     ])
 ])
 
-node('coreos && sudo') {
+node('coreos && amd64 && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
