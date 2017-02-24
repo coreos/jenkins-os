@@ -22,7 +22,7 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest"""),
 
 def dprops = [:]  /* Store properties read from an artifact later.  */
 
-node('coreos && sudo') {
+node('coreos && amd64 && sudo') {
     stage('SCM') {
         checkout scm: [
             $class: 'GitSCM',

@@ -21,7 +21,7 @@ properties([
     ])
 ])
 
-node('kvm && !arm64') {
+node('amd64 && kvm') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
