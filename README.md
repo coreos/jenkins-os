@@ -24,6 +24,14 @@ To initialize all job properties (parameters, timers, etc.) from the Groovy scri
 
 By default, the nightly build and other OS job parameters always build from the `master` branches of both this and the manifest repositories. To build a Container Linux release, build the `os/manifest` job and set the `MANIFEST_REF` parameter to the release tag. To pull all Groovy scripts for an OS build from a different branch of this repository, set the `PIPELINE_BRANCH` parameter on the `os/manifest` job.
 
+## Development
+
+The jobs are configured to allow copying the entire OS folder and making modifications to the copy. Clicking *New Item* on the main Jenkins page and typing `os` in the *Copy from* field will recursively copy all OS jobs to a new folder with the given name. When these jobs run and build their downstream jobs, they will all be run from the copied folder. This allows running a complete OS build with modified components independent of the original `os` jobs.
+
+Note that there is no dependency on job types, so the copied jobs can be changed from pulling Groovy from Git to directly pasting a Groovy script in the web form, or they can even be completely replaced with e.g. a freestyle project. Be aware that each of the copied jobs will create its own workspace, greatly increasing disk usage on the Jenkins workers.
+
+When using copied jobs, the `manifest` Groovy code should be modified to replace the prefix of `COREOS_BUILD_ID` and possibly `MANIFEST_URL` to avoid conflicts. The default value of its `PIPELINE_BRANCH` parameter can also be changed to switch source branches of this repository for all of the copied OS build jobs.
+
 ## Bugs
 
 Please use the [CoreOS issue tracker][bugs] to report all bugs, issues, and feature requests.
