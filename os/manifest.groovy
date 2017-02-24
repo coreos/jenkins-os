@@ -6,9 +6,6 @@ properties([
     [$class: 'GithubProjectProperty',
      projectUrlStr: 'https://github.com/coreos/manifest/'],
 
-    [$class: 'CopyArtifactPermissionProperty',
-     projectNames: '/os/*'],
-
     parameters([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',
