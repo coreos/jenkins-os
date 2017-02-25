@@ -75,11 +75,13 @@ mkdir -p tmp
                           --platform=qemu
 enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 
+bios=bios.bin
 if [[ "${BOARD}" == arm64* ]]; then
   script setup_board --board=${BOARD} \
                      --getbinpkgver="${COREOS_VERSION}" \
                      --regen_configs_only
-  enter emerge-arm64-usr --nodeps -qugKN sys-firmware/edk2-armvirt
+  enter "emerge-${BOARD}" --nodeps -qugKN sys-firmware/edk2-armvirt
+  bios="/build/${BOARD}/usr/share/edk2-armvirt/bios.bin"
 fi
 
 # copy all of the latest mantle binaries into the chroot
@@ -89,6 +91,7 @@ sudo cp -t chroot/usr/bin bin/[b-z]*
 
 enter sudo timeout --signal=SIGQUIT 60m kola run --board="${BOARD}" \
                      --parallel=2 \
+                     --qemu-bios="$bios" \
                      --qemu-image="/mnt/host/source/tmp/coreos_production_image.bin" \
                      --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
 
