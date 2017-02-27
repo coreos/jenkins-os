@@ -12,6 +12,17 @@ To get started, a fresh Jenkins server can be run in a container.
 docker run -p 8080:8080 -p 50000:50000 jenkins
 ```
 
+### Plugins
+
+At a minimum, install the following Jenkins plugins:
+
+  - Config File Provider
+  - Folders
+  - Git
+  - Pipeline
+
+## Job Installation
+
 When the server is accessible, go to *Manage Jenkins* and *Script Console*. The contents of the file `init.groovy` can be pasted directly into the text box on this page to install all of the Container Linux OS jobs.
 
 To initialize all job properties (parameters, timers, etc.) from the Groovy scripts, the following should each be built once manually:
