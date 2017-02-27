@@ -31,7 +31,7 @@ node('amd64 && kvm') {
 
         withCredentials([
             [$class: 'FileBinding',
-             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+             credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
             withEnv(["BOARD=${params.BOARD}",

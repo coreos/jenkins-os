@@ -33,10 +33,10 @@ When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed wit
 stage('Amend') {
     withCredentials([
         [$class: 'FileBinding',
-         credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+         credentialsId: 'GPG_SECRET_KEY_FILE',
          variable: 'GPG_SECRET_KEY_FILE'],
         [$class: 'FileBinding',
-         credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
          variable: 'GOOGLE_APPLICATION_CREDENTIALS']
     ]) {
         withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
