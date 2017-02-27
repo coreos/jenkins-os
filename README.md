@@ -20,6 +20,10 @@ To initialize all job properties (parameters, timers, etc.) from the Groovy scri
   - `os/glsa` compares security advisories against current upstream Gentoo.
   - `os/nightly-build` triggers every other OS job.
 
+### Nodes
+
+For ARM64 nodes the JDK must be installed manually by extracting the ARM64 JDK tarball on the node.  The JDK must either be installed to one of the Jenkins JDK search paths, `/home/$USER/jdk` for example, or the node environment variable `$JAVA_HOME` must be set.
+
 ## Usage
 
 By default, the nightly build and other OS job parameters always build from the `master` branches of both this and the manifest repositories. To build a Container Linux release, build the `os/manifest` job and set the `MANIFEST_REF` parameter to the release tag. To pull all Groovy scripts for an OS build from a different branch of this repository, set the `PIPELINE_BRANCH` parameter on the `os/manifest` job.
