@@ -20,6 +20,7 @@ At a minimum, install the following Jenkins plugins:
   - Folders
   - Git
   - Pipeline
+  - Slack (Optional, install to get slack notifications.)
 
 ## Job Installation
 
