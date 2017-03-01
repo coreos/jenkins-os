@@ -19,31 +19,40 @@ properties([
     ])
 ])
 
-stage('Wait') {
-    def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
-    def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
-When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
+node('coreos && amd64') {
+    stage('Setup') {
+        step([$class: 'CopyArtifact',
+              fingerprintArtifacts: true,
+              projectName: '/mantle/master-builder',
+              selector: [$class: 'StatusBuildSelector',
+                         stable: false]])
+    }
 
-    echo "${msg}"
-    if (Jenkins.instance.pluginManager.getPlugin("slack"))
-        slackSend color: '#C0C0C0', message: "${msg}"
-    input 'Waiting for the signed UEFI binaries to be ready...'
-}
+    stage('Wait') {
+        def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
+        def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
+    When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
 
-stage('Amend') {
-    withCredentials([
-        [$class: 'FileBinding',
-         credentialsId: 'GPG_SECRET_KEY_FILE',
-         variable: 'GPG_SECRET_KEY_FILE'],
-        [$class: 'FileBinding',
-         credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
-         variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-    ]) {
-        withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
-                 "MANIFEST_REF=${params.MANIFEST_REF}",
-                 "MANIFEST_URL=${params.MANIFEST_URL}",
-                 "BOARD=${params.BOARD}"]) {
-            sh '''#!/bin/bash -ex
+        echo "${msg}"
+        if (Jenkins.instance.pluginManager.getPlugin("slack"))
+            slackSend color: '#C0C0C0', message: "${msg}"
+        input 'Waiting for the signed UEFI binaries to be ready...'
+    }
+
+    stage('Amend') {
+        withCredentials([
+            [$class: 'FileBinding',
+            credentialsId: 'GPG_SECRET_KEY_FILE',
+            variable: 'GPG_SECRET_KEY_FILE'],
+            [$class: 'FileBinding',
+            credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
+            variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+        ]) {
+            withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
+                    "MANIFEST_REF=${params.MANIFEST_REF}",
+                    "MANIFEST_URL=${params.MANIFEST_URL}",
+                    "BOARD=${params.BOARD}"]) {
+                sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
 
@@ -133,17 +142,18 @@ script image_set_group --board=${BOARD} \
                        --upload_root=${UPLOAD}/beta \
                        --upload
 '''  /* Editor quote safety: ' */
+            }
         }
     }
-}
 
-stage('Downstream') {
-    build job: 'vm-matrix', parameters: [
-        string(name: 'BOARD', value: params.BOARD),
-        string(name: 'COREOS_OFFICIAL', '1'),
-        string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-        string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-        string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-    ]
+    stage('Downstream') {
+        build job: 'vm-matrix', parameters: [
+            string(name: 'BOARD', value: params.BOARD),
+            string(name: 'COREOS_OFFICIAL', '1'),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    }
 }
