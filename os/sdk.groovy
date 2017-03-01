@@ -25,6 +25,15 @@ properties([
 ])
 
 node('coreos && amd64 && sudo') {
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -46,7 +55,9 @@ node('coreos && amd64 && sudo') {
                      "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
                      "MANIFEST_URL=${params.MANIFEST_URL}",
-                     'USE_CACHE=' + (params.USE_CACHE ? 'true' : 'false')]) {
+                     'USE_CACHE=' + (params.USE_CACHE ? 'true' : 'false'),
+                     "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                     "GPG_USER_ID=${config.GPG_USER_ID()}"]) {
                 sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
@@ -61,7 +72,14 @@ node('coreos && amd64 && sudo') {
                                     --manifest-name "${MANIFEST_NAME}"
 
 enter() {
-    ./bin/cork enter --experimental -- "$@"
+  ./bin/cork enter --experimental -- env \
+    DEV_BUILDS_ROOT="http://storage.googleapis.com/${DEV_BUILDS_ROOT}" \
+    "$@"
+}
+
+script() {
+  local script="/mnt/host/source/src/scripts/${1}"; shift
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -84,8 +102,8 @@ S=/mnt/host/source/src/scripts
 enter ${S}/update_chroot
 enter sudo emerge -uv --jobs=2 catalyst
 enter sudo ${S}/bootstrap_sdk \
-    --sign buildbot@coreos.com --sign_digests buildbot@coreos.com \
-    --upload --upload_root gs://builds.developer.core-os.net
+    --sign ${GPG_USER_ID} --sign_digests ${GPG_USER_ID} \
+    --upload --upload_root gs://${DEV_BUILDS_ROOT}
 
 # Free some disk space only on success, for debugging failures
 sudo rm -rf src/build/catalyst/builds

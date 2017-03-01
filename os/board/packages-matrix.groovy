@@ -22,6 +22,15 @@ properties([
 ])
 
 node('coreos && amd64 && sudo') {
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     ws("${env.WORKSPACE}/${params.BOARD}") {
         stage('Build') {
             step([$class: 'CopyArtifact',
@@ -39,7 +48,9 @@ node('coreos && amd64 && sudo') {
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}"]) {
+                         "BOARD=${params.BOARD}",
+                         "GPG_USER_ID=${config.GPG_USER_ID()}",
+                         "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}"]) {
                     sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
@@ -57,8 +68,10 @@ mkdir -p .cache/ccache
 
 enter() {
   ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="http://storage.googleapis.com/${DEV_BUILDS_ROOT}" \
     CCACHE_DIR="/mnt/host/source/.cache/ccache" \
-    CCACHE_MAXSIZE="5G" "$@"
+    CCACHE_MAXSIZE="5G" \
+    "$@"
 }
 
 script() {
@@ -83,7 +96,7 @@ script build_packages --board=${BOARD} \
                       --skip_chroot_upgrade \
                       --getbinpkgver=${COREOS_VERSION} \
                       --toolchainpkgonly \
-                      --upload --upload_root gs://builds.developer.core-os.net
+                      --upload --upload_root gs://${DEV_BUILDS_ROOT}
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */

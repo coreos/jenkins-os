@@ -21,7 +21,16 @@ properties([
     ])
 ])
 
-node('amd64 && kvm') {
+node('coreos && amd64 && sudo') {
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -38,7 +47,9 @@ node('amd64 && kvm') {
                      "COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                      "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}"]) {
+                     "MANIFEST_URL=${params.MANIFEST_URL}",
+                     "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                     "REL_BUILDS_ROOT=${config.REL_BUILDS_ROOT()}"]) {
                 sh '''#!/bin/bash -ex
 
 # clean up old test results
@@ -48,7 +59,9 @@ rm -f tmp/*.tap
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
 
 enter() {
-  ./bin/cork enter --experimental -- "$@"
+  ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="http://storage.googleapis.com/${DEV_BUILDS_ROOT}" \
+    "$@"
 }
 
 script() {
@@ -63,9 +76,9 @@ script() {
 source .repo/manifests/version.txt
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/stable"
+  root="gs://${REL_BUILDS_ROOT}/stable"
 else
-  root="gs://builds.developer.core-os.net"
+  root="gs://${DEV_BUILDS_ROOT}"
 fi
 
 mkdir -p tmp

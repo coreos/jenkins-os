@@ -20,6 +20,15 @@ properties([
 ])
 
 node('coreos && amd64') {
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     stage('Setup') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -30,8 +39,8 @@ node('coreos && amd64') {
 
     stage('Wait') {
         def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
-        def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
-    When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
+        def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/${config.REL_BUILDS_ROOT()}/signed/boards/${params.BOARD}/${version} to continue.\n
+When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
 
         echo "${msg}"
         if (Jenkins.instance.pluginManager.getPlugin("slack"))
@@ -51,7 +60,10 @@ node('coreos && amd64') {
             withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
                     "MANIFEST_REF=${params.MANIFEST_REF}",
                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                    "BOARD=${params.BOARD}"]) {
+                    "BOARD=${params.BOARD}",
+                    "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                    "REL_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                    "GPG_USER_ID=${config.GPG_USER_ID()}"]) {
                 sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
@@ -64,13 +76,15 @@ sudo rm -rf gce.properties src tmp
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
+enter() {
+  ./bin/cork enter --experimental -- env \
+    DEV_BUILDS_ROOT="http://storage.googleapis.com/${DEV_BUILDS_ROOT}" \
+    "$@"
 }
 
-enter() {
-  ./bin/cork enter --experimental -- "$@"
+script() {
+  local script="/mnt/host/source/src/scripts/${1}"; shift
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -88,8 +102,8 @@ grub=coreos_production_image.grub
 shim=coreos_production_image.shim
 [[ ${BOARD} == amd64-usr ]] || shim=
 
-DOWNLOAD=gs://builds.release.core-os.net  # /signed, /unsigned
-UPLOAD=gs://builds.release.core-os.net  # /alpha, /beta, /stable
+DOWNLOAD=gs://${REL_BUILDS_ROOT}  # /signed, /unsigned
+UPLOAD=gs://${REL_BUILDS_ROOT}  # /alpha, /beta, /stable
 
 mkdir -p src tmp
 ./bin/cork download-image --root="${DOWNLOAD}/unsigned/boards/${BOARD}/${COREOS_VERSION}" \
@@ -119,8 +133,8 @@ script image_inject_bootchain --board=${BOARD} \
                               ${kernel:+--kernel_path=/mnt/host/source/src/$kernel} \
                               ${shim:+--shim_path=/mnt/host/source/src/$shim} \
                               --replace \
-                              --sign=buildbot@coreos.com \
-                              --sign_digests=buildbot@coreos.com \
+                              --sign=${GPG_USER_ID} \
+                              --sign_digests=${GPG_USER_ID} \
                               --upload_root=${UPLOAD}/stable \
                               --upload
 
@@ -128,8 +142,8 @@ script image_set_group --board=${BOARD} \
                        --group=alpha \
                        --from=/mnt/home/source/tmp/${BOARD}/stable-latest \
                        --output_root=/mnt/host/source/tmp \
-                       --sign=buildbot@coreos.com \
-                       --sign_digests=buildbot@coreos.com \
+                       --sign=${GPG_USER_ID} \
+                       --sign_digests=${GPG_USER_ID} \
                        --upload_root=${UPLOAD}/alpha \
                        --upload
 
@@ -137,8 +151,8 @@ script image_set_group --board=${BOARD} \
                        --group=beta \
                        --from=/mnt/home/source/tmp/${BOARD}/stable-latest \
                        --output_root=/mnt/host/source/tmp \
-                       --sign=buildbot@coreos.com \
-                       --sign_digests=buildbot@coreos.com \
+                       --sign=${GPG_USER_ID} \
+                       --sign_digests=${GPG_USER_ID} \
                        --upload_root=${UPLOAD}/beta \
                        --upload
 '''  /* Editor quote safety: ' */

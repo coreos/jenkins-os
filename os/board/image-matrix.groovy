@@ -22,6 +22,15 @@ properties([
 ])
 
 node('coreos && amd64 && sudo') {
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     ws("${env.WORKSPACE}/${params.BOARD}") {
         stage('Build') {
             step([$class: 'CopyArtifact',
@@ -42,7 +51,10 @@ node('coreos && amd64 && sudo') {
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}"]) {
+                         "BOARD=${params.BOARD}",
+                         "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                         "REL_BUILDS_ROOT=${config.REL_BUILDS_ROOT()}",
+                         "GPG_USER_ID=${config.GPG_USER_ID()}"]) {
                     sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
@@ -56,9 +68,15 @@ node('coreos && amd64 && sudo') {
 # first thing, clear out old images
 sudo rm -rf src/build
 
+enter() {
+  ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="http://storage.googleapis.com/${DEV_BUILDS_ROOT}" \
+    "$@"
+}
+
 script() {
   local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -78,11 +96,11 @@ script setup_board --board=${BOARD} \
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   GROUP=stable
-  UPLOAD=gs://builds.release.core-os.net/stable
+  UPLOAD=gs://${REL_BUILDS_ROOT}/stable
   script set_official --board=${BOARD} --official
 else
   GROUP=developer
-  UPLOAD=gs://builds.developer.core-os.net
+  UPLOAD=gs://${DEV_BUILDS_ROOT}
   script set_official --board=${BOARD} --noofficial
 fi
 
@@ -90,8 +108,8 @@ script build_image --board=${BOARD} \
                    --group=${GROUP} \
                    --getbinpkg \
                    --getbinpkgver="${COREOS_VERSION}" \
-                   --sign=buildbot@coreos.com \
-                   --sign_digests=buildbot@coreos.com \
+                   --sign=${GPG_USER_ID} \
+                   --sign_digests=${GPG_USER_ID} \
                    --upload_root=${UPLOAD} \
                    --upload prod container
 

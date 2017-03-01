@@ -23,16 +23,25 @@ https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest"""),
 def dprops = [:]  /* Store properties read from an artifact later.  */
 
 node('coreos && amd64 && sudo') {
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     stage('SCM') {
         checkout scm: [
             $class: 'GitSCM',
             branches: [[name: params.MANIFEST_REF]],
             browser: [$class: 'GithubWeb',
-                      repoUrl: 'https://github.com/coreos/manifest'],
+                      repoUrl: config.CL_MANIFEST_URL()],
             extensions: [[$class: 'RelativeTargetDirectory',
                           relativeTargetDir: 'manifest'],
                          [$class: 'CleanBeforeCheckout']],
-            userRemoteConfigs: [[url: 'https://github.com/coreos/manifest.git',
+            userRemoteConfigs: [[url: config.CL_MANIFEST_URL(),
                                  name: 'origin']]
         ]
     }
@@ -55,7 +64,10 @@ node('coreos && amd64 && sudo') {
             withEnv(['GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
                      'GIT_COMMIT=' + sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim(),
                      'GIT_URL=' + sh(returnStdout: true, script: 'git -C manifest remote get-url origin').trim(),
-                     "LOCAL_MANIFEST=${params.LOCAL_MANIFEST}"]) {
+                     "LOCAL_MANIFEST=${params.LOCAL_MANIFEST}",
+                     "MANIFEST_URL=${config.MANIFEST_BUILDS_URL()}",
+                     "GIT_AUTHOR_EMAIL=${config.GIT_AUTHOR_EMAIL()}",
+                     "GIT_AUTHOR_NAME=${config.GIT_AUTHOR_NAME()}"]) {
                 sh '''#!/bin/bash -ex
 
 export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
@@ -65,10 +77,10 @@ COREOS_OFFICIAL=0
 finish() {
   local tag="$1"
   git -C "${WORKSPACE}/manifest" push \
-    "ssh://git@github.com/coreos/manifest-builds.git" \
+    "ssh://git@${MANIFEST_URL#https://}" \
     "refs/tags/${tag}:refs/tags/${tag}"
   tee "${WORKSPACE}/manifest.properties" <<EOF
-MANIFEST_URL = https://github.com/coreos/manifest-builds.git
+MANIFEST_URL = ${MANIFEST_URL}
 MANIFEST_REF = refs/tags/${tag}
 MANIFEST_NAME = release.xml
 COREOS_OFFICIAL = ${COREOS_OFFICIAL:-0}
@@ -128,10 +140,11 @@ COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 git add version.txt
 
-EMAIL="jenkins@jenkins.coreos.systems"
-GIT_AUTHOR_NAME="CoreOS Jenkins"
-GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
-export EMAIL GIT_AUTHOR_NAME GIT_COMMITTER_NAME
+export GIT_AUTHOR_EMAIL
+export GIT_AUTHOR_NAME
+export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+
 git commit \
   -m "${COREOS_BUILD_ID}: add build manifest" \
   -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
