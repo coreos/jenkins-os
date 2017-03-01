@@ -1,10 +1,10 @@
 # Container Linux Jenkins Projects
 
-The Container Linux Jenkins jobs are implemented as Pipeline projects. The Groovy code that runs the automated builds and tests for the Container Linux operating system is found here.
+The Jenkins jobs for the Container Linux continuous delivery system are implemented as Pipeline projects. The Groovy code for those is found here.
 
-## Installation
+This repository is currently provided as a reference.
 
-This repository is currently provided as a reference. In order to run these jobs at another site, they will need to be customized to use different storage locations, node tags, credentials, etc.
+## Jenkins Setup
 
 To get started, a fresh Jenkins server can be run in a container.
 
@@ -22,9 +22,43 @@ At a minimum, install the following Jenkins plugins:
   - Pipeline
   - Slack (Optional, install to get slack notifications.)
 
+### Config
+
+Create Jenkins credentials of type and ID:
+
+| Credential Type               | Credential ID                  | Use |
+| ----------------------------- | ------------------------------ | --- |
+| Secret file                   | GPG_SECRET_KEY_FILE            | Private key to sign build artifacts. |
+| Secret file                   | GOOGLE_APPLICATION_CREDENTIALS | Credentials for upload to Google Storage. See [OAuth2](https://developers.google.com/identity/protocols/OAuth2). |
+| SSH Username with private key | MANIFEST_BUILDS_KEY            | Push to manifest-build git repository. |
+
+Using the Jenkins *Config File Provider* plugin, create Jenkins configuration files of type and ID:
+
+| File Type   | File ID        | Use |
+| ----------- | -------------- | --- |
+| Groovy file | JOB_CONFIG     | Job config file.  See [*sample-job-config.groovy*](./sample-job-config.groovy) |
+| Custom file | GPG_VERIFY_KEY | Public key of the GPG_SECRET_KEY_FILE credential. |
+
+### Nodes
+
+For ARM64 nodes the JDK must be installed manually by extracting the ARM64 JDK tarball on the node.  The JDK must either be installed to one of the Jenkins JDK search paths, `/home/$USER/jdk` for example, or the node environment variable `$JAVA_HOME` must be set.
+
+#### Labels
+
+Add labels to the Jenkins executors as follows:
+
+| Label          | Use |
+| -------------- | --- |
+| amd64, arm64   | Machine architecture. |
+| coreos, ubuntu | Machine host operating system. |
+| docker         | Jenkins account can run Docker. |
+| gce            | Machine is Google Compute Engine. |
+| kvm            | Jenkins account can run KVM. |
+| sudo           | Jenkins account has sudo privileges. |
+
 ## Job Installation
 
-When the server is accessible, go to *Manage Jenkins* and *Script Console*. The contents of the file `init.groovy` can be pasted directly into the text box on this page to install all of the Container Linux OS jobs.
+Go to *Manage Jenkins* and *Script Console*. The contents of the file `init.groovy` can be pasted directly into the text box on this page to install all of the Container Linux OS jobs.
 
 To initialize all job properties (parameters, timers, etc.) from the Groovy scripts, the following should each be built once manually:
 
@@ -32,9 +66,20 @@ To initialize all job properties (parameters, timers, etc.) from the Groovy scri
   - `os/glsa` compares security advisories against current upstream Gentoo.
   - `os/nightly-build` triggers every other OS job.
 
-### Nodes
+### Job Hierarchy
 
-For ARM64 nodes the JDK must be installed manually by extracting the ARM64 JDK tarball on the node.  The JDK must either be installed to one of the Jenkins JDK search paths, `/home/$USER/jdk` for example, or the node environment variable `$JAVA_HOME` must be set.
+```
+    mantle/master-builder
+    └── os/manifest
+        ├── os/sdk
+        └── os/toolchains
+            └── os/board/packages-matrix
+                └── os/board/image-matrix
+                    └── os/board/sign-image (if COREOS_OFFICIAL == 1)
+                        └── os/board/vm-matrix
+                            ├── os/kola/qemu
+                            └── os/kola/gce
+```
 
 ## Usage
 
