@@ -82,11 +82,19 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
         matrix_map["${GROUP}-${FORMAT}"] = {
             node('coreos && amd64 && sudo') {
                 def config
+                String verify_key = "./verify_key"
 
                 stage('Config') {
                     configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
                         sh "cat ${env.JOB_CONFIG}"
                         config = load("${env.JOB_CONFIG}")
+                    }
+                    try {
+                        configFileProvider([configFile(fileId: 'GPG_VERIFY_KEY', targetLocation: "${verify_key}")]) {
+                        }
+                    } catch (err) {
+                        echo "Using build-in GPG verify key."
+                        verify_key = ""
                     }
                 }
 
@@ -114,7 +122,8 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
                              "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
                              "DOWNLOAD_ROOT=${config.DOWNLOAD_ROOT()}",
                              "REL_BUILDS_ROOT=${config.REL_BUILDS_ROOT()}",
-                             "GPG_USER_ID=${config.GPG_USER_ID()}"]) {
+                             "GPG_USER_ID=${config.GPG_USER_ID()}",
+                             "GPG_VERIFY_KEY=${verify_key}"]) {
                         sh '''#!/bin/bash -ex
 
 rm -f gce.properties
@@ -167,6 +176,7 @@ fi
 mkdir -p src tmp
 ./bin/cork download-image --root="${root}/boards/${BOARD}/${COREOS_VERSION}" \
                           --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+                          --verify-key="${GPG_VERIFY_KEY}" \
                           --cache-dir=./src \
                           --platform=qemu
 img=src/coreos_production_image.bin
