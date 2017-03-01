@@ -32,20 +32,27 @@ When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed wit
     input 'Waiting for the signed UEFI binaries to be ready...'
 }
 
-stage('Amend') {
-    withCredentials([
-        [$class: 'FileBinding',
-         credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
-         variable: 'GPG_SECRET_KEY_FILE'],
-        [$class: 'FileBinding',
-         credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-         variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-    ]) {
-        withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
-                 "MANIFEST_REF=${params.MANIFEST_REF}",
-                 "MANIFEST_URL=${params.MANIFEST_URL}",
-                 "BOARD=${params.BOARD}"]) {
-            sh '''#!/bin/bash -ex
+node('coreos && amd64 && sudo') {
+    stage('Amend') {
+        step([$class: 'CopyArtifact',
+              fingerprintArtifacts: true,
+              projectName: '/mantle/master-builder',
+              selector: [$class: 'StatusBuildSelector',
+                         stable: false]])
+
+        withCredentials([
+            [$class: 'FileBinding',
+             credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+             variable: 'GPG_SECRET_KEY_FILE'],
+            [$class: 'FileBinding',
+             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+        ]) {
+            withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
+                     "MANIFEST_REF=${params.MANIFEST_REF}",
+                     "MANIFEST_URL=${params.MANIFEST_URL}",
+                     "BOARD=${params.BOARD}"]) {
+                sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
 
@@ -135,6 +142,7 @@ script image_set_group --board=${BOARD} \
                        --upload_root=${UPLOAD}/beta \
                        --upload
 '''  /* Editor quote safety: ' */
+            }
         }
     }
 }
