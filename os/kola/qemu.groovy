@@ -75,7 +75,7 @@ mkdir -p tmp
                           --platform=qemu
 enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 
-bios=bios.bin
+bios=bios-256k.bin
 if [[ "${BOARD}" == arm64* ]]; then
   script setup_board --board=${BOARD} \
                      --getbinpkgver="${COREOS_VERSION}" \
