@@ -61,6 +61,7 @@ qemu_uefi
 pxe
 openstack
 openstack_mini
+packet
 ''']
 
 /* The group list mapping is keyed on ${COREOS_OFFICIAL}.  */
