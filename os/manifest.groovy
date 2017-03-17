@@ -50,7 +50,7 @@ node('coreos && amd64 && sudo') {
                          fallbackToLastSuccessful: true,
                          upstreamFilterStrategy: 'UseGlobalSetting']])
 
-        sshagent(['3d4319c2-bca1-47c8-a483-2f355c249e30']) {
+        sshagent(['MANIFEST_BUILDS_KEY']) {
             /* Work around JENKINS-35230 (broken GIT_* variables).  */
             withEnv(['GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
                      'GIT_COMMIT=' + sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim(),

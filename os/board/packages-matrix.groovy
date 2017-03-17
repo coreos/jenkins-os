@@ -32,7 +32,7 @@ node('coreos && amd64 && sudo') {
 
             withCredentials([
                 [$class: 'FileBinding',
-                 credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                 credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",

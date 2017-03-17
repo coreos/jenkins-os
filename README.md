@@ -12,6 +12,18 @@ To get started, a fresh Jenkins server can be run in a container.
 docker run -p 8080:8080 -p 50000:50000 jenkins
 ```
 
+### Plugins
+
+At a minimum, install the following Jenkins plugins:
+
+  - Config File Provider
+  - Folders
+  - Git
+  - Pipeline
+  - Slack (Optional, install to get slack notifications.)
+
+## Job Installation
+
 When the server is accessible, go to *Manage Jenkins* and *Script Console*. The contents of the file `init.groovy` can be pasted directly into the text box on this page to install all of the Container Linux OS jobs.
 
 To initialize all job properties (parameters, timers, etc.) from the Groovy scripts, the following should each be built once manually:
@@ -19,6 +31,10 @@ To initialize all job properties (parameters, timers, etc.) from the Groovy scri
   - `mantle/master-builder` provides the binary artifacts for all OS jobs.
   - `os/glsa` compares security advisories against current upstream Gentoo.
   - `os/nightly-build` triggers every other OS job.
+
+### Nodes
+
+For ARM64 nodes the JDK must be installed manually by extracting the ARM64 JDK tarball on the node.  The JDK must either be installed to one of the Jenkins JDK search paths, `/home/$USER/jdk` for example, or the node environment variable `$JAVA_HOME` must be set.
 
 ## Usage
 

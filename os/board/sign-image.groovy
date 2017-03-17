@@ -21,18 +21,22 @@ properties([
 
 stage('Wait') {
     def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
-    slackSend color: '#C0C0C0', message: """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
+    def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
 When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
+
+    echo "${msg}"
+    if (Jenkins.instance.pluginManager.getPlugin("slack"))
+        slackSend color: '#C0C0C0', message: "${msg}"
     input 'Waiting for the signed UEFI binaries to be ready...'
 }
 
 stage('Amend') {
     withCredentials([
         [$class: 'FileBinding',
-         credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+         credentialsId: 'GPG_SECRET_KEY_FILE',
          variable: 'GPG_SECRET_KEY_FILE'],
         [$class: 'FileBinding',
-         credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
          variable: 'GOOGLE_APPLICATION_CREDENTIALS']
     ]) {
         withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",

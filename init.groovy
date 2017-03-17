@@ -3,19 +3,20 @@
  *
  * This entire script can be pasted directly into the text box found at
  * ${JENKINS_URL}/script to populate the server with OS jobs.  It will
- * define everything based on the contents of this repository.  At least
- * the Pipeline, Git, and Folder plugins must be installed.
+ * define everything based on the contents of this repository.
  *
  * Note that settings such as user permissions and secret credentials
- * are not handled by this script.
+ * are not handled by this script.  For Jenkins configuration info see
+ * the README file at https://github.com/coreos/jenkins-os.
  */
 
 import com.cloudbees.hudson.plugins.folder.Folder
 import org.jenkinsci.plugins.workflow.job.WorkflowJob
 
 /* Define what to clone.  */
-final String REPO_URL = 'https://github.com/coreos/jenkins-os.git'
-final String REPO_BRANCH = 'master'
+final String JOB_REPO_URL = 'https://github.com/coreos/jenkins-os.git'
+final String JOB_REPO_BRANCH = 'master'
+final String MANTLE_REPO_URL = 'https://github.com/coreos/mantle.git'
 
 /*
  * Create a new folder project under the given parent model.
@@ -46,10 +47,10 @@ Folder createFolder(String name,
 WorkflowJob createPipeline(String name,
                            ModelObjectWithChildren parent = Jenkins.instance,
                            String description = '',
-                           String repo = REPO_URL,
-                           String branch = REPO_BRANCH,
+                           String repo = JOB_REPO_URL,
+                           String branch = JOB_REPO_BRANCH,
                            String script = 'Jenkinsfile',
-                           String defaultPipelineBranch = REPO_BRANCH) {
+                           String defaultPipelineBranch = JOB_REPO_BRANCH) {
     parent.createProjectFromXML(name, new ByteArrayInputStream("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <flow-definition plugin="workflow-job">
@@ -96,10 +97,10 @@ if (proc.exitValue() != 0)
 final String REPO_PATH = proc.text.trim()
 
 /* Fetch all the OS Groovy pipeline scripts.  */
-proc = ['/usr/bin/git', 'clone', "--branch=${REPO_BRANCH}", '--depth=1', REPO_URL, REPO_PATH].execute()
+proc = ['/usr/bin/git', 'clone', "--branch=${JOB_REPO_BRANCH}", '--depth=1', JOB_REPO_URL, REPO_PATH].execute()
 proc.waitFor()
 if (proc.exitValue() != 0)
-    throw new Exception("Could not clone ${REPO_URL} into ${REPO_PATH}")
+    throw new Exception("Could not clone ${JOB_REPO_URL} into ${REPO_PATH}")
 
 /* List every OS pipeline and directory in the repository.  */
 proc = ['/usr/bin/find', "${REPO_PATH}/os", '-type', 'f', '-name', '*.groovy', '-o', '-type', 'd'].execute()
@@ -116,16 +117,16 @@ proc.text.eachLine { path ->
         folderStack.pop()
     }
     if (path.endsWith('.groovy')) {
-        String branch = REPO_BRANCH
+        String branch = JOB_REPO_BRANCH
         if (new File(path).text.contains('PIPELINE_BRANCH'))
             branch = '${PIPELINE_BRANCH}'
         createPipeline(path[dirStack[-1].length() + 1 .. -8],
                        folderStack[-1],
                        '',
-                       REPO_URL,
+                       JOB_REPO_URL,
                        branch,
                        path.substring(REPO_PATH.length() + 1),
-                       REPO_BRANCH)
+                       JOB_REPO_BRANCH)
     } else {
         dirStack.push(path)
         folderStack.push(createFolder(path.split('/')[-1], folderStack[-1]))
@@ -136,7 +137,7 @@ proc.text.eachLine { path ->
 createPipeline('master-builder',
                createFolder('mantle'),
                'Build mantle from master for the other jobs.',
-               'https://github.com/coreos/mantle.git',
+               MANTLE_REPO_URL,
                'master',
                'Jenkinsfile',
                'master')
