@@ -19,6 +19,15 @@ properties([
 ])
 
 node('gce') {  /* This needs "Read Write" on "Compute Engine" access scope.  */
+    def config
+
+    stage('Config') {
+        configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+            sh "cat ${env.JOB_CONFIG}"
+            config = load("${env.JOB_CONFIG}")
+        }
+    }
+
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -29,7 +38,9 @@ node('gce') {  /* This needs "Read Write" on "Compute Engine" access scope.  */
         withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                  "MANIFEST_NAME=${params.MANIFEST_NAME}",
                  "MANIFEST_REF=${params.MANIFEST_REF}",
-                 "MANIFEST_URL=${params.MANIFEST_URL}"]) {
+                 "MANIFEST_URL=${params.MANIFEST_URL}",
+                 "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                 "REL_BUILDS_ROOT=${config.REL_BUILDS_ROOT()}"]) {
             sh '''#!/bin/bash -ex
 
 BOARD=amd64-usr
@@ -41,9 +52,9 @@ git clone --depth 1 --branch "${short_ref}" "${MANIFEST_URL}" manifests
 source manifests/version.txt
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/stable"
+  root="gs://${REL_BUILDS_ROOT}/stable"
 else
-  root="gs://builds.developer.core-os.net"
+  root="gs://${DEV_BUILDS_ROOT}"
 fi
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"

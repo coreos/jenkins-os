@@ -82,6 +82,23 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
 
         matrix_map["${GROUP}-${FORMAT}"] = {
             node('coreos && amd64 && sudo') {
+                def config
+                String verify_key = "./verify_key"
+
+                stage('Config') {
+                    configFileProvider([configFile(fileId: 'JOB_CONFIG', variable: 'JOB_CONFIG')]) {
+                        sh "cat ${env.JOB_CONFIG}"
+                        config = load("${env.JOB_CONFIG}")
+                    }
+                    try {
+                        configFileProvider([configFile(fileId: 'GPG_VERIFY_KEY', targetLocation: "${verify_key}")]) {
+                        }
+                    } catch (err) {
+                        echo "Using build-in GPG verify key."
+                        verify_key = ""
+                    }
+                }
+
                 step([$class: 'CopyArtifact',
                       fingerprintArtifacts: true,
                       projectName: '/mantle/master-builder',
@@ -90,10 +107,10 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
 
                 withCredentials([
                     [$class: 'FileBinding',
-                     credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+                     credentialsId: 'GPG_SECRET_KEY_FILE',
                      variable: 'GPG_SECRET_KEY_FILE'],
                     [$class: 'FileBinding',
-                     credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                     credentialsId: 'GOOGLE_APPLICATION_CREDENTIALS',
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS']
                 ]) {
                     withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
@@ -102,7 +119,12 @@ for (group in group_map[params.COREOS_OFFICIAL]) {
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
                              "FORMAT=${FORMAT}",
-                             "GROUP=${GROUP}"]) {
+                             "GROUP=${GROUP}",
+                             "DEV_BUILDS_ROOT=${config.DEV_BUILDS_ROOT()}",
+                             "DOWNLOAD_ROOT=${config.DOWNLOAD_ROOT()}",
+                             "REL_BUILDS_ROOT=${config.REL_BUILDS_ROOT()}",
+                             "GPG_USER_ID=${config.GPG_USER_ID()}",
+                             "GPG_VERIFY_KEY=${verify_key}"]) {
                         sh '''#!/bin/bash -ex
 
 rm -f gce.properties
@@ -123,13 +145,15 @@ else
   [[ "${GROUP}" == developer ]]
 fi
 
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
+enter() {
+  ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="http://storage.googleapis.com/${DEV_BUILDS_ROOT}" \
+    "$@"
 }
 
-enter() {
-  ./bin/cork enter --experimental -- "$@"
+script() {
+  local script="/mnt/host/source/src/scripts/${1}"; shift
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -143,16 +167,17 @@ mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
 if [[ "${GROUP}" == developer ]]; then
-  root="gs://builds.developer.core-os.net"
+  root="gs://${DEV_BUILDS_ROOT}"
   dlroot=""
 else
-  root="gs://builds.release.core-os.net/${GROUP}"
-  dlroot="--download_root https://${GROUP}.release.core-os.net"
+  root="gs://${REL_BUILDS_ROOT}/${GROUP}"
+  dlroot="--download_root https://${GROUP}.${DOWNLOAD_ROOT}"
 fi
 
 mkdir -p src tmp
 ./bin/cork download-image --root="${root}/boards/${BOARD}/${COREOS_VERSION}" \
                           --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+                          --verify-key="${GPG_VERIFY_KEY}" \
                           --cache-dir=./src \
                           --platform=qemu
 img=src/coreos_production_image.bin
@@ -168,8 +193,8 @@ script image_to_vm.sh --board=${BOARD} \
                       --getbinpkgver=${COREOS_VERSION} \
                       --from=/mnt/host/source/src/ \
                       --to=/mnt/host/source/tmp/ \
-                      --sign=buildbot@coreos.com \
-                      --sign_digests=buildbot@coreos.com \
+                      --sign=${GPG_USER_ID} \
+                      --sign_digests=${GPG_USER_ID} \
                       --upload_root="${root}" \
                       --upload ${dlroot}
 '''  /* Editor quote safety: ' */
