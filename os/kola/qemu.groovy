@@ -21,6 +21,9 @@ properties([
     ])
 ])
 
+/* The kola step doesn't fail the job, so save the return code separately.  */
+def rc = 0
+
 node('amd64 && kvm') {
     stage('Build') {
         step([$class: 'CopyArtifact',
@@ -39,7 +42,7 @@ node('amd64 && kvm') {
                      "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
                      "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-                sh '''#!/bin/bash -ex
+                rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
 # clean up old test results
 rm -f tmp/*.tap
@@ -125,3 +128,6 @@ fi
         fingerprint 'tmp/*,chroot/var/lib/portage/pkgs/*/*.tbz2'
     }
 }
+
+/* Propagate the job status after publishing TAP results.  */
+currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'

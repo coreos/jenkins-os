@@ -18,6 +18,9 @@ properties([
     ])
 ])
 
+/* The kola step doesn't fail the job, so save the return code separately.  */
+def rc = 0
+
 node('gce') {  /* This needs "Read Write" on "Compute Engine" access scope.  */
     stage('Build') {
         step([$class: 'CopyArtifact',
@@ -30,7 +33,7 @@ node('gce') {  /* This needs "Read Write" on "Compute Engine" access scope.  */
                  "MANIFEST_NAME=${params.MANIFEST_NAME}",
                  "MANIFEST_REF=${params.MANIFEST_REF}",
                  "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-            sh '''#!/bin/bash -ex
+            rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
 BOARD=amd64-usr
 
@@ -88,3 +91,6 @@ timeout --signal=SIGQUIT 30m ./bin/kola --tapfile="${JOB_NAME##*/}.tap" \
               verbose: true])
     }
 }
+
+/* Propagate the job status after publishing TAP results.  */
+currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
