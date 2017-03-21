@@ -3,15 +3,36 @@
  *
  * This entire script can be pasted directly into the text box found at
  * ${JENKINS_URL}/script to populate the server with OS jobs.  It will
- * define everything based on the contents of this repository.  At least
- * the Pipeline, Git, and Folder plugins must be installed.
+ * define everything based on the contents of this repository.
+ *
+ * If any required plugins are not installed when this script is run,
+ * they will be downloaded and installed automatically, and Jenkins will
+ * be restarted to enable them.  In this case, this script must be run
+ * again after the restart to create the jobs.
  *
  * Note that settings such as user permissions and secret credentials
  * are not handled by this script.
  */
 
-import com.cloudbees.hudson.plugins.folder.Folder
-import org.jenkinsci.plugins.workflow.job.WorkflowJob
+/* Install required plugins and restart Jenkins, if necessary.  */
+final List<String> REQUIRED_PLUGINS = [
+    "cloudbees-folder",
+    "copyartifact",
+    "git",
+    "workflow-aggregator",
+]
+if (Jenkins.instance.pluginManager.plugins.collect {
+        it.shortName
+    }.intersect(REQUIRED_PLUGINS).size() != REQUIRED_PLUGINS.size()) {
+    REQUIRED_PLUGINS.collect {
+        Jenkins.instance.updateCenter.getPlugin(it).deploy()
+    }.each {
+        it.get()
+    }
+    Jenkins.instance.restart()
+    println 'Run this script again after restarting to create the jobs!'
+    throw new RestartRequiredException(null)
+}
 
 /* Define what to clone.  */
 final String REPO_URL = 'https://github.com/coreos/jenkins-os.git'
@@ -20,9 +41,9 @@ final String REPO_BRANCH = 'master'
 /*
  * Create a new folder project under the given parent model.
  */
-Folder createFolder(String name,
-                    ModelObjectWithChildren parent = Jenkins.instance,
-                    String description = '') {
+Actionable createFolder(String name,
+                        ModifiableTopLevelItemGroup parent = Jenkins.instance,
+                        String description = '') {
     parent.createProjectFromXML(name, new ByteArrayInputStream("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <com.cloudbees.hudson.plugins.folder.Folder plugin="cloudbees-folder">
@@ -43,13 +64,13 @@ Folder createFolder(String name,
  * the repository and that the source has a properties step to overwrite
  * the initial parameter definitions.
  */
-WorkflowJob createPipeline(String name,
-                           ModelObjectWithChildren parent = Jenkins.instance,
-                           String description = '',
-                           String repo = REPO_URL,
-                           String branch = REPO_BRANCH,
-                           String script = 'Jenkinsfile',
-                           String defaultPipelineBranch = REPO_BRANCH) {
+Job createPipeline(String name,
+                   ModifiableTopLevelItemGroup parent = Jenkins.instance,
+                   String description = '',
+                   String repo = REPO_URL,
+                   String branch = REPO_BRANCH,
+                   String script = 'Jenkinsfile',
+                   String defaultPipelineBranch = REPO_BRANCH) {
     parent.createProjectFromXML(name, new ByteArrayInputStream("""\
 <?xml version="1.0" encoding="UTF-8"?>
 <flow-definition plugin="workflow-job">
@@ -146,3 +167,5 @@ proc = ['/bin/rm', '--force', '--recursive', REPO_PATH].execute()
 proc.waitFor()
 if (proc.exitValue() != 0)
     throw new Exception("Could not remove ${REPO_PATH}")
+
+println 'OS jobs were successfully created.'

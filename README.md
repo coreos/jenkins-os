@@ -12,7 +12,7 @@ To get started, a fresh Jenkins server can be run in a container.
 docker run -p 8080:8080 -p 50000:50000 jenkins
 ```
 
-When the server is accessible, go to *Manage Jenkins* and *Script Console*. The contents of the file `init.groovy` can be pasted directly into the text box on this page to install all of the Container Linux OS jobs.
+Go to *Manage Jenkins*, then *Script Console*. The contents of the file `init.groovy` can be pasted directly into the text box on this page to install all of the Container Linux OS jobs. If required plugins are missing, the script will install them and restart Jenkins. In that case, the script must be run again after Jenkins has restarted to create the jobs.
 
 To initialize all job properties (parameters, timers, etc.) from the Groovy scripts, the following should each be built once manually:
 
