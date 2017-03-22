@@ -5,18 +5,14 @@ properties([pipelineTriggers([cron('H 9 * * *')])])
 
 /* Build the manifest job with its default parameters (to build master).  */
 stage('Downstream') {
-    try {
-        build job: 'manifest'
-    } catch (exc) {
+    def run = build job: 'manifest', propagate: false
+
+    if (run.result == 'SUCCESS')
+        slackSend color: 'good',
+                  message: ":partyparrot: The nightly OS build succeeded!\n${BUILD_URL}"
+    else
         slackSend color: 'danger',
-                  message: ":trashfire: The nightly OS build failed!\n${BUILD_URL}"
+                  message: ":trashfire: The nightly OS build failed!\n\n${buildTree run}"
 
-        /* Fail this build after notifying.  */
-        currentBuild.result = 'FAILURE'
-        throw exc
-    }
-
-    /* Notify that everything worked if this point is reached.  */
-    slackSend color: 'good',
-              message: ":partyparrot: The nightly OS build succeeded!\n${BUILD_URL}"
+    currentBuild.result = run.result
 }
