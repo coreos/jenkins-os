@@ -1,0 +1,12 @@
+The makeLink function outputs a special string value that is represented as a
+hyperlink on the Jenkins console.
+
+It takes the target of the link as the first argument.  When given a string, it
+is directly used as the target URL.  When given a Jenkins model object, the URL
+that represents that object is used as the link target.  Links to most Jenkins
+model types (builds, projects, etc.) should automatically include the adjacent
+context menu drop-down with available actions and sidebar links.
+
+It can optionally take a string as the second argument, to be used as the link
+text that is printed on the console.  When omitted, the text is generated from
+the first argument.
