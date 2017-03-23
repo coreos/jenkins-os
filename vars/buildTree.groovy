@@ -8,6 +8,7 @@ import org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper
 String call(RunWrapper topRunWrapper) {
     def builds = [:].withDefault { [].withDefault { [downstreams: []] } }
     def icons = [:].withDefault { ':question:' }
+    icons['ABORTED'] = ':no_entry_sign:'
     icons['BUILDING'] = ':gear:'
     icons['FAILURE'] = ':trashfire:'
     icons['SUCCESS'] = ':white_check_mark:'
