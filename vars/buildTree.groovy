@@ -31,7 +31,8 @@ String call(RunWrapper topRunWrapper) {
         }
     }
 
-    Closure makeTree = { build, indent ->
+    Closure makeTree = null  /* Declare it beforehand for recursion.  */
+    makeTree = { build, indent ->
         String result = "${build.result ?: 'BUILDING'}"
         String name = build.parent.fullName
         String tag = ''
@@ -50,7 +51,8 @@ String call(RunWrapper topRunWrapper) {
         else if (params.BOARD != null)
             tag = " (${params.BOARD})"
 
-        String output = "${indent}${icons[result]} ${url}${tag} ${result}"
+        String output = "${indent}${icons[result]} ${name}${tag} ${result}"
+        output += "\n${indent}${url}"
         builds[name][number].downstreams.sort {
             String.format('%s%08X', it.parent.fullName, it.number)
         } each {
