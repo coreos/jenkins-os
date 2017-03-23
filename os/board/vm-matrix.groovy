@@ -7,6 +7,9 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -56,7 +59,7 @@ niftycloud
 cloudsigma
 packet
 ''',
-                   'arm64-usr': '''
+                  'arm64-usr': '''
 qemu_uefi
 pxe
 openstack
@@ -64,46 +67,38 @@ openstack_mini
 packet
 ''']
 
-/* The group list mapping is keyed on ${COREOS_OFFICIAL}.  */
-def group_map = ['0': ['developer'],
-                 '1': ['alpha', 'beta', 'stable']]
-
 /* Construct a matrix of build variation closures.  */
 def matrix_map = [:]
 
 /* Force this as an ArrayList for serializability, or Jenkins explodes.  */
 ArrayList<String> format_list = format_map[params.BOARD].trim().split('\n')
 
-for (group in group_map[params.COREOS_OFFICIAL]) {
-    def GROUP = group  /* This MUST use fresh variables per iteration.  */
+for (format in format_list) {
+    def FORMAT = format  /* This MUST use fresh variables per iteration.  */
 
-    for (format in format_list) {
-        def FORMAT = format  /* This MUST use fresh variables per iteration.  */
+    matrix_map[FORMAT] = {
+        node('coreos && amd64 && sudo') {
+            step([$class: 'CopyArtifact',
+                  fingerprintArtifacts: true,
+                  projectName: '/mantle/master-builder',
+                  selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        matrix_map["${GROUP}-${FORMAT}"] = {
-            node('coreos && amd64 && sudo') {
-                step([$class: 'CopyArtifact',
-                      fingerprintArtifacts: true,
-                      projectName: '/mantle/master-builder',
-                      selector: [$class: 'StatusBuildSelector',
-                                 stable: false]])
-
-                withCredentials([
-                    [$class: 'FileBinding',
-                     credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
-                     variable: 'GPG_SECRET_KEY_FILE'],
-                    [$class: 'FileBinding',
-                     credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-                ]) {
-                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_REF=${params.MANIFEST_REF}",
-                             "MANIFEST_URL=${params.MANIFEST_URL}",
-                             "BOARD=${params.BOARD}",
-                             "FORMAT=${FORMAT}",
-                             "GROUP=${GROUP}"]) {
-                        sh '''#!/bin/bash -ex
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+                 variable: 'GPG_SECRET_KEY_FILE'],
+                [$class: 'FileBinding',
+                 credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "BOARD=${params.BOARD}",
+                         "FORMAT=${FORMAT}",
+                         "GROUP=${params.GROUP}"]) {
+                    sh '''#!/bin/bash -ex
 
 rm -f gce.properties
 sudo rm -rf tmp
@@ -173,13 +168,12 @@ script image_to_vm.sh --board=${BOARD} \
                       --upload_root="${root}" \
                       --upload ${dlroot}
 '''  /* Editor quote safety: ' */
-                    }
                 }
+            }
 
-                fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
-                dir('tmp') {
-                    deleteDir()
-                }
+            fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
+            dir('tmp') {
+                deleteDir()
             }
         }
     }
@@ -209,6 +203,7 @@ stage('Downstream') {
     if (params.BOARD == 'amd64-usr')
         build job: '../kola/gce', propagate: false, parameters: [
             string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+            string(name: 'GROUP', value: params.GROUP),
             string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
             string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),

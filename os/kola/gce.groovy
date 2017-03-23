@@ -4,6 +4,9 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -44,7 +47,7 @@ git clone --depth 1 --branch "${short_ref}" "${MANIFEST_URL}" manifests
 source manifests/version.txt
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/stable"
+  root="gs://builds.release.core-os.net/${GROUP}"
 else
   root="gs://builds.developer.core-os.net"
 fi

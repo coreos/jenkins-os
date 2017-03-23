@@ -7,6 +7,9 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -39,6 +42,7 @@ node('coreos && amd64 && sudo') {
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "GROUP=${params.GROUP}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
@@ -77,11 +81,9 @@ script setup_board --board=${BOARD} \
                    --regen_configs_only
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  GROUP=stable
-  UPLOAD=gs://builds.release.core-os.net/stable
+  UPLOAD="gs://builds.release.core-os.net/${GROUP}"
   script set_official --board=${BOARD} --official
 else
-  GROUP=developer
   UPLOAD=gs://builds.developer.core-os.net
   script set_official --board=${BOARD} --noofficial
 fi
@@ -94,21 +96,6 @@ script build_image --board=${BOARD} \
                    --sign_digests=buildbot@coreos.com \
                    --upload_root=${UPLOAD} \
                    --upload prod container
-
-if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  script image_set_group --board=${BOARD} \
-                         --group=alpha \
-                         --sign=buildbot@coreos.com \
-                         --sign_digests=buildbot@coreos.com \
-                         --upload_root=gs://builds.release.core-os.net/alpha \
-                         --upload
-  script image_set_group --board=${BOARD} \
-                         --group=beta \
-                         --sign=buildbot@coreos.com \
-                         --sign_digests=buildbot@coreos.com \
-                         --upload_root=gs://builds.release.core-os.net/beta \
-                         --upload
-fi
 '''  /* Editor quote safety: ' */
                 }
             }
@@ -129,6 +116,7 @@ stage('Downstream') {
             if (false && params.COREOS_OFFICIAL == '1')
                 build job: 'sign-image', parameters: [
                     string(name: 'BOARD', value: params.BOARD),
+                    string(name: 'GROUP', value: params.GROUP),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
@@ -137,6 +125,7 @@ stage('Downstream') {
             else
                 build job: 'vm-matrix', parameters: [
                     string(name: 'BOARD', value: params.BOARD),
+                    string(name: 'GROUP', value: params.GROUP),
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
@@ -147,6 +136,7 @@ stage('Downstream') {
         'kola-qemu': {
             build job: '../kola/qemu', propagate: false, parameters: [
                 string(name: 'BOARD', value: params.BOARD),
+                string(name: 'GROUP', value: params.GROUP),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

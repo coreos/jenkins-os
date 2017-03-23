@@ -7,6 +7,9 @@ properties([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',
                description: 'Manifest branch or tag to build'),
+        choice(name: 'GROUP',
+               choices: "developer\nalpha\nbeta\nstable",
+               description: 'Which release group owns this build'),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
@@ -164,6 +167,7 @@ stage('Downstream') {
         toolchains: {
             build job: 'toolchains', parameters: [
                 string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
+                string(name: 'GROUP', value: params.GROUP),
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),

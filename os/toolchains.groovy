@@ -10,6 +10,9 @@ properties([
         booleanParam(name: 'USE_CACHE',
                      defaultValue: false,
                      description: 'Enable use of any binary packages cached locally from previous builds.'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -103,6 +106,7 @@ stage('Downstream') {
         'board-packages-matrix-amd64-usr': {
             build job: 'board/packages-matrix', parameters: [
                 string(name: 'BOARD', value: 'amd64-usr'),
+                string(name: 'GROUP', value: params.GROUP),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
@@ -114,6 +118,7 @@ stage('Downstream') {
             sleep time: 1, unit: 'MINUTES'
             build job: 'board/packages-matrix', parameters: [
                 string(name: 'BOARD', value: 'arm64-usr'),
+                string(name: 'GROUP', value: params.GROUP),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

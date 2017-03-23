@@ -7,6 +7,9 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -48,7 +51,8 @@ node('coreos && amd64 && sudo') {
              credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
-            withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
+            withEnv(["GROUP=${params.GROUP}",
+                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
                      "MANIFEST_URL=${params.MANIFEST_URL}",
                      "BOARD=${params.BOARD}"]) {
@@ -89,7 +93,7 @@ shim=coreos_production_image.shim
 [[ ${BOARD} == amd64-usr ]] || shim=
 
 DOWNLOAD=gs://builds.release.core-os.net  # /signed, /unsigned
-UPLOAD=gs://builds.release.core-os.net  # /alpha, /beta, /stable
+UPLOAD="gs://builds.release.core-os.net/${GROUP}"
 
 mkdir -p src tmp
 ./bin/cork download-image --root="${DOWNLOAD}/unsigned/boards/${BOARD}/${COREOS_VERSION}" \
@@ -112,7 +116,7 @@ enter gsutil cp \
 [[ -n "$shim" ]] && gpg --verify "src/$shim.sig"
 
 script image_inject_bootchain --board=${BOARD} \
-                              --group=stable \
+                              --group=${GROUP} \
                               --from=/mnt/host/source/src \
                               --output_root=/mnt/host/source/tmp \
                               ${grub:+--efi_grub_path=/mnt/host/source/src/$grub} \
@@ -121,26 +125,8 @@ script image_inject_bootchain --board=${BOARD} \
                               --replace \
                               --sign=buildbot@coreos.com \
                               --sign_digests=buildbot@coreos.com \
-                              --upload_root=${UPLOAD}/stable \
+                              --upload_root=${UPLOAD} \
                               --upload
-
-script image_set_group --board=${BOARD} \
-                       --group=alpha \
-                       --from=/mnt/home/source/tmp/${BOARD}/stable-latest \
-                       --output_root=/mnt/host/source/tmp \
-                       --sign=buildbot@coreos.com \
-                       --sign_digests=buildbot@coreos.com \
-                       --upload_root=${UPLOAD}/alpha \
-                       --upload
-
-script image_set_group --board=${BOARD} \
-                       --group=beta \
-                       --from=/mnt/home/source/tmp/${BOARD}/stable-latest \
-                       --output_root=/mnt/host/source/tmp \
-                       --sign=buildbot@coreos.com \
-                       --sign_digests=buildbot@coreos.com \
-                       --upload_root=${UPLOAD}/beta \
-                       --upload
 '''  /* Editor quote safety: ' */
             }
         }
@@ -150,6 +136,7 @@ script image_set_group --board=${BOARD} \
 stage('Downstream') {
     build job: 'vm-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
+        string(name: 'GROUP', value: params.GROUP),
         string(name: 'COREOS_OFFICIAL', '1'),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

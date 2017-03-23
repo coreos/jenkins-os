@@ -7,6 +7,9 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -66,7 +69,7 @@ script() {
 source .repo/manifests/version.txt
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/stable"
+  root="gs://builds.release.core-os.net/${GROUP}"
 else
   root="gs://builds.developer.core-os.net"
 fi

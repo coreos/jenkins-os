@@ -7,6 +7,9 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -35,8 +38,7 @@ node('coreos && amd64 && sudo') {
                  credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
-                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "BOARD=${params.BOARD}"]) {
@@ -72,13 +74,12 @@ export COREOS_BUILD_ID
 # figure out if ccache is doing us any good in this scheme
 enter ccache --zero-stats
 
-#if [[ "${COREOS_OFFICIAL:-0}" -eq 1 ]]; then
-  script setup_board --board=${BOARD} \
-                     --skip_chroot_upgrade \
-                     --getbinpkgver=${COREOS_VERSION} \
-                     --toolchainpkgonly \
-                     --force
-#fi
+script setup_board --board=${BOARD} \
+                   --skip_chroot_upgrade \
+                   --getbinpkgver=${COREOS_VERSION} \
+                   --toolchainpkgonly \
+                   --force
+
 script build_packages --board=${BOARD} \
                       --skip_chroot_upgrade \
                       --getbinpkgver=${COREOS_VERSION} \
@@ -100,6 +101,7 @@ enter ccache --show-stats
 stage('Downstream') {
     build job: 'image-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
+        string(name: 'GROUP', value: params.GROUP),
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
