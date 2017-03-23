@@ -3,9 +3,6 @@
 properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
-    [$class: 'GithubProjectProperty',
-     projectUrlStr: 'https://github.com/coreos/manifest/'],
-
     parameters([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',
@@ -27,8 +24,6 @@ node('coreos && amd64 && sudo') {
         checkout scm: [
             $class: 'GitSCM',
             branches: [[name: params.MANIFEST_REF]],
-            browser: [$class: 'GithubWeb',
-                      repoUrl: 'https://github.com/coreos/manifest'],
             extensions: [[$class: 'RelativeTargetDirectory',
                           relativeTargetDir: 'manifest'],
                          [$class: 'CleanBeforeCheckout']],
@@ -38,10 +33,6 @@ node('coreos && amd64 && sudo') {
     }
 
     stage('Build') {
-        step([$class: 'GitHubCommitStatusSetter',
-              contextSource: [$class: 'ManuallyEnteredCommitContextSource',
-                              context: 'jenkins/os']])
-
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
               projectName: '/mantle/master-builder',
