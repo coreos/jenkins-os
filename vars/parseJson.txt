@@ -1,0 +1,2 @@
+The parseJson function returns a serializable (pipeline-safe) Map from a string
+of JSON text given as its only argument.
