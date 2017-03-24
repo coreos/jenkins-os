@@ -198,6 +198,10 @@ stage('Downstream') {
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
+                string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
+                string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
+                string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
