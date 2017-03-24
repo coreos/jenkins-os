@@ -16,6 +16,28 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'GS_DEVEL_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading development files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_DEVEL_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
+        string(name: 'GS_RELEASE_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are uploaded'),
+        string(name: 'SIGNING_CREDS',
+               defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
+               description: 'Credential ID for a GPG private key file'),
+        string(name: 'SIGNING_USER',
+               defaultValue: 'buildbot@coreos.com',
+               description: 'E-mail address to identify the GPG key'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -24,7 +46,7 @@ properties([
 
 stage('Wait') {
     def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
-    def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
+    def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to continue.\n
 When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
 
     try {
@@ -40,15 +62,17 @@ node('coreos && amd64 && sudo') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
               projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector',
-                         stable: false]])
+              selector: [$class: 'StatusBuildSelector', stable: false]])
 
         withCredentials([
             [$class: 'FileBinding',
-             credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+             credentialsId: params.SIGNING_CREDS,
              variable: 'GPG_SECRET_KEY_FILE'],
             [$class: 'FileBinding',
-             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+             credentialsId: params.GS_DEVEL_CREDS,
+             variable: 'GS_DEVEL_CREDS'],
+            [$class: 'FileBinding',
+             credentialsId: params.GS_RELEASE_CREDS,
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
             withEnv(["COREOS_OFFICIAL=1",
@@ -56,7 +80,10 @@ node('coreos && amd64 && sudo') {
                      "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
                      "MANIFEST_URL=${params.MANIFEST_URL}",
-                     "BOARD=${params.BOARD}"]) {
+                     "BOARD=${params.BOARD}",
+                     "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                     "SIGNING_USER=${params.SIGNING_USER}",
+                     "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
                 sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
@@ -93,25 +120,25 @@ grub=coreos_production_image.grub
 shim=coreos_production_image.shim
 [[ ${BOARD} == amd64-usr ]] || shim=
 
-DOWNLOAD=gs://builds.release.core-os.net  # /signed, /unsigned
-UPLOAD="gs://builds.release.core-os.net/${GROUP}"
-
 mkdir -p src tmp
-./bin/cork download-image --root="${DOWNLOAD}/unsigned/boards/${BOARD}/${COREOS_VERSION}" \
-                          --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+./bin/cork download-image --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
+                          --json-key="${GS_DEVEL_CREDS}" \
                           --cache-dir=./src \
                           --platform=qemu
 img=src/coreos_production_image.bin
 [[ "${img}.bz2" -nt "${img}" ]] && enter lbunzip2 -k -f "/mnt/host/source/${img}.bz2"
 
-enter gsutil cp \
-    ${kernel:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel"} \
-    ${kernel:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel.sig"} \
-    ${grub:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub"} \
-    ${grub:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub.sig"} \
-    ${shim:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim"} \
-    ${shim:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim.sig"} \
-    /mnt/host/source/src
+enter env "GOOGLE_APPLICATION_CREDENTIALS=${GS_DEVEL_CREDS}" gsutil \
+    cp ${kernel:+
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel"
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel.sig"
+    } ${grub:+
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub"
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub.sig"
+    } ${shim:+
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim"
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim.sig"
+    } /mnt/host/source/src
 [[ -n "$kernel" ]] && gpg --verify "src/$kernel.sig"
 [[ -n "$grub" ]] && gpg --verify "src/$grub.sig"
 [[ -n "$shim" ]] && gpg --verify "src/$shim.sig"
@@ -124,9 +151,9 @@ script image_inject_bootchain --board=${BOARD} \
                               ${kernel:+--kernel_path=/mnt/host/source/src/$kernel} \
                               ${shim:+--shim_path=/mnt/host/source/src/$shim} \
                               --replace \
-                              --sign=buildbot@coreos.com \
-                              --sign_digests=buildbot@coreos.com \
-                              --upload_root=${UPLOAD} \
+                              --sign="${SIGNING_USER}" \
+                              --sign_digests="${SIGNING_USER}" \
+                              --upload_root="${UPLOAD_ROOT}" \
                               --upload
 '''  /* Editor quote safety: ' */
             }
