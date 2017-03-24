@@ -29,6 +29,9 @@ Google Storage URL, requires write permission'''),
                description: '''Credentials ID for a JSON file passed as the \
 GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
 Google Storage URL, requires write permission'''),
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are downloaded'),
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are uploaded'),
@@ -169,6 +172,11 @@ stage('Downstream') {
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+        string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
+        string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+        string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+        string(name: 'SIGNING_USER', value: params.SIGNING_USER),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
     ]
 }

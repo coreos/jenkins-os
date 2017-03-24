@@ -201,6 +201,7 @@ stage('Downstream') {
                 string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
                 string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
                 string(name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS),
+                string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: profile.GS_RELEASE_DOWNLOAD_ROOT),
                 string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
                 string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: profile.SIGNING_USER),

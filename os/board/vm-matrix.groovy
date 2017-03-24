@@ -18,6 +18,23 @@ properties([
                defaultValue: 'release.xml'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'GS_RELEASE_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are downloaded'),
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are uploaded'),
+        string(name: 'SIGNING_CREDS',
+               defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
+               description: 'Credential ID for a GPG private key file'),
+        string(name: 'SIGNING_USER',
+               defaultValue: 'buildbot@coreos.com',
+               description: 'E-mail address to identify the GPG key'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -85,10 +102,10 @@ for (format in format_list) {
 
             withCredentials([
                 [$class: 'FileBinding',
-                 credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+                 credentialsId: params.SIGNING_CREDS,
                  variable: 'GPG_SECRET_KEY_FILE'],
                 [$class: 'FileBinding',
-                 credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                 credentialsId: params.GS_RELEASE_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
@@ -97,7 +114,10 @@ for (format in format_list) {
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "BOARD=${params.BOARD}",
                          "FORMAT=${FORMAT}",
-                         "GROUP=${params.GROUP}"]) {
+                         "GROUP=${params.GROUP}",
+                         "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
+                         "SIGNING_USER=${params.SIGNING_USER}",
+                         "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
 rm -f gce.properties
@@ -137,16 +157,8 @@ trap "rm -rf '${GNUPGHOME}'" EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
-if [[ "${GROUP}" == developer ]]; then
-  root="gs://builds.developer.core-os.net"
-  dlroot=""
-else
-  root="gs://builds.release.core-os.net/${GROUP}"
-  dlroot="--download_root https://${GROUP}.release.core-os.net"
-fi
-
 mkdir -p src tmp
-./bin/cork download-image --root="${root}/boards/${BOARD}/${COREOS_VERSION}" \
+./bin/cork download-image --root="${UPLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
                           --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
                           --cache-dir=./src \
                           --platform=qemu
@@ -163,10 +175,11 @@ script image_to_vm.sh --board=${BOARD} \
                       --getbinpkgver=${COREOS_VERSION} \
                       --from=/mnt/host/source/src/ \
                       --to=/mnt/host/source/tmp/ \
-                      --sign=buildbot@coreos.com \
-                      --sign_digests=buildbot@coreos.com \
-                      --upload_root="${root}" \
-                      --upload ${dlroot}
+                      --sign="${SIGNING_USER}" \
+                      --sign_digests="${SIGNING_USER}" \
+                      --download_root="${DOWNLOAD_ROOT}" \
+                      --upload_root="${UPLOAD_ROOT}" \
+                      --upload
 '''  /* Editor quote safety: ' */
                 }
             }
