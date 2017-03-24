@@ -18,6 +18,14 @@ properties([
                defaultValue: 'release.xml'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'GS_DEVEL_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading development files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_DEVEL_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -30,19 +38,19 @@ node('coreos && amd64 && sudo') {
             step([$class: 'CopyArtifact',
                   fingerprintArtifacts: true,
                   projectName: '/mantle/master-builder',
-                  selector: [$class: 'StatusBuildSelector',
-                             stable: false]])
+                  selector: [$class: 'StatusBuildSelector', stable: false]])
 
             withCredentials([
                 [$class: 'FileBinding',
-                 credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                 credentialsId: params.GS_DEVEL_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}"]) {
+                         "BOARD=${params.BOARD}",
+                         "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
@@ -85,7 +93,8 @@ script build_packages --board=${BOARD} \
                       --skip_chroot_upgrade \
                       --getbinpkgver=${COREOS_VERSION} \
                       --toolchainpkgonly \
-                      --upload --upload_root gs://builds.developer.core-os.net
+                      --upload_root="${UPLOAD_ROOT}" \
+                      --upload
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */

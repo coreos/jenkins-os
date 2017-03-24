@@ -122,6 +122,8 @@ stage('Downstream') {
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+                string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },
@@ -134,6 +136,8 @@ stage('Downstream') {
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+                string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
