@@ -7,9 +7,9 @@ properties([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',
                description: 'Manifest branch or tag to build'),
-        choice(name: 'GROUP',
-               choices: "developer\nalpha\nbeta\nstable",
-               description: 'Which release group owns this build'),
+        string(name: 'PROFILE',
+               defaultValue: 'default',
+               description: 'Which JSON build profile to load (e.g. beta)'),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
@@ -19,6 +19,26 @@ https://zifnab.net/~zifnab/wiki_dump/Doc%3A_Using_manifests%2Cen.html#The_local_
                description: 'Branch to use for fetching the pipeline jobs')
     ])
 ])
+
+/* Parse the build profile values from library resources.  */
+def profile = [:]
+Map loadProfileTrusted(String name) {
+    def map = parseJson libraryResource("com/coreos/profiles/${name}.json")
+    return map?.PARENT ? loadProfileTrusted(map.PARENT) + map : map
+}
+Map loadProfileDirect(String name) {
+    def map = [:] + new groovy.json.JsonSlurper(
+        type: groovy.json.JsonParserType.LAX
+    ).parseText(libraryResource("com/coreos/profiles/${name}.json"))
+    return map?.PARENT ? loadProfileDirect(map.PARENT) + map : map
+}
+try {
+    profile = loadProfileTrusted(params.PROFILE ?: 'default')
+} catch (exc) {
+    echo 'Failed to use a trusted library to parse JSON...'
+    echo "Attempting to parse it directly and hoping the sandbox won't abort."
+    profile = loadProfileDirect(params.PROFILE ?: 'default')
+}
 
 def dprops = [:]  /* Store properties read from an artifact later.  */
 
@@ -30,8 +50,7 @@ node('coreos && amd64 && sudo') {
             extensions: [[$class: 'RelativeTargetDirectory',
                           relativeTargetDir: 'manifest'],
                          [$class: 'CleanBeforeCheckout']],
-            userRemoteConfigs: [[url: 'https://github.com/coreos/manifest.git',
-                                 name: 'origin']]
+            userRemoteConfigs: [[url: profile.MANIFEST_URL, name: 'origin']]
         ]
     }
 
@@ -44,9 +63,14 @@ node('coreos && amd64 && sudo') {
                          fallbackToLastSuccessful: true,
                          upstreamFilterStrategy: 'UseGlobalSetting']])
 
-        sshagent(['3d4319c2-bca1-47c8-a483-2f355c249e30']) {
+        sshagent([profile.BUILDS_PUSH_CREDS]) {
             /* Work around JENKINS-35230 (broken GIT_* variables).  */
-            withEnv(['GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
+            withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
+                     "BUILDS_CLONE_URL=${profile.BUILDS_CLONE_URL}",
+                     "BUILDS_PUSH_URL=${profile.BUILDS_PUSH_URL}",
+                     "GIT_AUTHOR_EMAIL=${profile.GIT_AUTHOR_EMAIL}",
+                     "GIT_AUTHOR_NAME=${profile.GIT_AUTHOR_NAME}",
+                     'GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
                      'GIT_COMMIT=' + sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim(),
                      'GIT_URL=' + sh(returnStdout: true, script: 'git -C manifest remote get-url origin').trim(),
                      "LOCAL_MANIFEST=${params.LOCAL_MANIFEST}"]) {
@@ -59,10 +83,10 @@ COREOS_OFFICIAL=0
 finish() {
   local tag="$1"
   git -C "${WORKSPACE}/manifest" push \
-    "ssh://git@github.com/coreos/manifest-builds.git" \
+    "${BUILDS_PUSH_URL}" \
     "refs/tags/${tag}:refs/tags/${tag}"
   tee "${WORKSPACE}/manifest.properties" <<EOF
-MANIFEST_URL = https://github.com/coreos/manifest-builds.git
+MANIFEST_URL = ${BUILDS_CLONE_URL}
 MANIFEST_REF = refs/tags/${tag}
 MANIFEST_NAME = release.xml
 COREOS_OFFICIAL = ${COREOS_OFFICIAL:-0}
@@ -82,7 +106,7 @@ MANIFEST_NAME="${MANIFEST_BRANCH}.xml"
 [[ -f "manifest/${MANIFEST_NAME}" ]]
 
 source manifest/version.txt
-export COREOS_BUILD_ID=jenkins2-"${MANIFEST_BRANCH}-${BUILD_NUMBER}"
+export COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}-${BUILD_NUMBER}"
 
 # hack to get repo to set things up using the manifest repo we already have
 # (amazing that it tolerates this considering it usually is so intolerant)
@@ -122,10 +146,9 @@ COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 git add version.txt
 
-EMAIL="jenkins@jenkins.coreos.systems"
-GIT_AUTHOR_NAME="CoreOS Jenkins"
+GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
 GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
-export EMAIL GIT_AUTHOR_NAME GIT_COMMITTER_NAME
+export GIT_COMMITTER_EMAIL GIT_COMMITTER_NAME
 git commit \
   -m "${COREOS_BUILD_ID}: add build manifest" \
   -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
@@ -167,7 +190,7 @@ stage('Downstream') {
         toolchains: {
             build job: 'toolchains', parameters: [
                 string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
-                string(name: 'GROUP', value: params.GROUP),
+                string(name: 'GROUP', value: profile.GROUP),
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
