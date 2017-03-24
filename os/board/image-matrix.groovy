@@ -18,11 +18,41 @@ properties([
                defaultValue: 'release.xml'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'GS_DEVEL_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading development files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_DEVEL_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
+        string(name: 'GS_RELEASE_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are uploaded'),
+        string(name: 'SIGNING_CREDS',
+               defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
+               description: 'Credential ID for a GPG private key file'),
+        string(name: 'SIGNING_USER',
+               defaultValue: 'buildbot@coreos.com',
+               description: 'E-mail address to identify the GPG key'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
     ])
 ])
+
+/* The unsigned image generated here is still a dev file with Secure Boot.  */
+def UPLOAD_CREDS = params.GS_RELEASE_CREDS
+def UPLOAD_ROOT = params.GS_RELEASE_ROOT
+if (false && params.COREOS_OFFICIAL == '1') {
+    UPLOAD_CREDS = params.GS_DEVEL_CREDS
+    UPLOAD_ROOT = params.GS_DEVEL_ROOT
+}
 
 node('coreos && amd64 && sudo') {
     ws("${env.WORKSPACE}/${params.BOARD}") {
@@ -30,15 +60,14 @@ node('coreos && amd64 && sudo') {
             step([$class: 'CopyArtifact',
                   fingerprintArtifacts: true,
                   projectName: '/mantle/master-builder',
-                  selector: [$class: 'StatusBuildSelector',
-                             stable: false]])
+                  selector: [$class: 'StatusBuildSelector', stable: false]])
 
             withCredentials([
                 [$class: 'FileBinding',
-                 credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
+                 credentialsId: params.SIGNING_CREDS,
                  variable: 'GPG_SECRET_KEY_FILE'],
                 [$class: 'FileBinding',
-                 credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                 credentialsId: UPLOAD_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
@@ -46,7 +75,9 @@ node('coreos && amd64 && sudo') {
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}"]) {
+                         "BOARD=${params.BOARD}",
+                         "SIGNING_USER=${params.SIGNING_USER}",
+                         "UPLOAD_ROOT=${UPLOAD_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
@@ -81,10 +112,8 @@ script setup_board --board=${BOARD} \
                    --regen_configs_only
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  UPLOAD="gs://builds.release.core-os.net/${GROUP}"
   script set_official --board=${BOARD} --official
 else
-  UPLOAD=gs://builds.developer.core-os.net
   script set_official --board=${BOARD} --noofficial
 fi
 
@@ -92,9 +121,9 @@ script build_image --board=${BOARD} \
                    --group=${GROUP} \
                    --getbinpkg \
                    --getbinpkgver="${COREOS_VERSION}" \
-                   --sign=buildbot@coreos.com \
-                   --sign_digests=buildbot@coreos.com \
-                   --upload_root=${UPLOAD} \
+                   --sign="${SIGNING_USER}" \
+                   --sign_digests="${SIGNING_USER}" \
+                   --upload_root="${UPLOAD_ROOT}" \
                    --upload prod container
 '''  /* Editor quote safety: ' */
                 }

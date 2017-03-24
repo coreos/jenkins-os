@@ -26,6 +26,14 @@ Google Storage URL, requires write permission'''),
         string(name: 'GS_DEVEL_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where development files are uploaded'),
+        string(name: 'GS_RELEASE_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are uploaded'),
         string(name: 'SIGNING_CREDS',
                defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
                description: 'Credential ID for a GPG private key file'),
@@ -124,6 +132,10 @@ stage('Downstream') {
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                 string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
                 string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
+                string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+                string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+                string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+                string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },
@@ -138,6 +150,10 @@ stage('Downstream') {
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                 string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
                 string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
+                string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+                string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+                string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+                string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
