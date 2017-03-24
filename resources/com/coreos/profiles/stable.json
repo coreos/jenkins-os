@@ -1,0 +1,9 @@
+/*
+ * This profile is used when building stable releases.
+ */
+{
+    "PARENT": "developer",
+    "GROUP": "stable",
+    "GS_RELEASE_DOWNLOAD_ROOT": "https://stable.release.core-os.net",
+    "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/stable",
+}

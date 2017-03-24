@@ -1,0 +1,9 @@
+/*
+ * This profile is used when building beta releases.
+ */
+{
+    "PARENT": "developer",
+    "GROUP": "beta",
+    "GS_RELEASE_DOWNLOAD_ROOT": "https://beta.release.core-os.net",
+    "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/beta",
+}

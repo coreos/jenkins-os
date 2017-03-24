@@ -1,0 +1,59 @@
+/*
+ * This profile builds public testing and development images.
+ */
+{
+    /*
+     * The OS build ID should be changed when building with a different
+     * manifest job, when reusing build numbers would cause conflicting
+     * branch names in the manifest-builds repository.
+     */
+    "BUILD_ID_PREFIX": "jenkins2-",
+
+    /*
+     * The manifest-builds repository holds the manifest files for each
+     * new build from Jenkins.  It creates new builds by pushing them
+     * over SSH, and all the other jobs clone the files over HTTPS.
+     */
+    "BUILDS_CLONE_URL": "https://github.com/coreos/manifest-builds.git",
+    "BUILDS_PUSH_URL": "ssh://git@github.com/coreos/manifest-builds.git",
+    "BUILDS_PUSH_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
+
+    /*
+     * When creating build commits in the manifest-builds repository,
+     * these values will be used for the author and committer.
+     */
+    "GIT_AUTHOR_EMAIL": "jenkins@jenkins-os.prod.coreos.systems",
+    "GIT_AUTHOR_NAME": "CoreOS Jenkins",
+
+    /*
+     * The generated images must have a default update group.
+     */
+    "GROUP": "developer",
+
+    /*
+     * The built OS files are uploaded to Google Storage, and they are
+     * downloaded by downstream jobs.  The development files such as
+     * binary packages and the SDK image may use a different storage
+     * location than the final OS images.
+     */
+    "GS_DEVEL_ROOT": "gs://builds.developer.core-os.net",
+    "GS_DEVEL_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
+    "GS_RELEASE_DOWNLOAD_ROOT": "gs://builds.developer.core-os.net",
+    "GS_RELEASE_ROOT": "gs://builds.developer.core-os.net",
+    "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
+
+    /*
+     * This is the URL cloned by the os/manifest job to read the base
+     * manifest files that define the OS build.
+     */
+    "MANIFEST_URL": "https://github.com/coreos/manifest.git",
+
+    /*
+     * All of the files resulting from the build (OS images, firmware,
+     * digests, etc.) are signed with the following GPG key.  The given
+     * credentials ID should point to the private key file to be used,
+     * and the e-mail address identifies it to the GPG command.
+     */
+    "SIGNING_CREDS": "buildbot-official.2E16137F.subkey.gpg",
+    "SIGNING_USER": "buildbot@coreos.com",
+}

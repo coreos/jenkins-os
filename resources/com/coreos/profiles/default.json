@@ -1,0 +1,14 @@
+/*
+ * This is the default OS build profile, which inherits all values from
+ * the profile that creates testing and development images at CoreOS.
+ *
+ * To create a new profile, copy "developer.json" and replace all
+ * relevant values.  It briefly documents all supported settings.  The
+ * new file can be given a unique name, or it can replace this file to
+ * use it by default.
+ *
+ * Note that these files are read by Groovy's JsonParserLax, so they
+ * are not JSON in the strictest sense.  In particular, they support
+ * JavaScript comments and multi-line string values.
+ */
+{"PARENT": "developer"}
