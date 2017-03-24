@@ -180,11 +180,11 @@ stage('Downstream') {
         'kola-qemu': {
             build job: '../kola/qemu', propagate: false, parameters: [
                 string(name: 'BOARD', value: params.BOARD),
-                string(name: 'GROUP', value: params.GROUP),
-                string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'DOWNLOAD_CREDS', value: UPLOAD_CREDS),
+                string(name: 'DOWNLOAD_ROOT', value: UPLOAD_ROOT),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
