@@ -92,6 +92,9 @@ timeout --signal=SIGQUIT 30m ./bin/kola --tapfile="${JOB_NAME##*/}.tap" \
               todoIsFailure: false,
               validateNumberOfTests: true,
               verbose: true])
+
+        sh 'tar -cJf _kola_temp.tar.xz _kola_temp'
+        archiveArtifacts '_kola_temp.tar.xz'
     }
 }
 

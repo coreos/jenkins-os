@@ -129,6 +129,9 @@ fi
               verbose: true])
 
         fingerprint 'tmp/*,chroot/var/lib/portage/pkgs/*/*.tbz2'
+
+        sh 'tar -C src/scripts -cJf _kola_temp.tar.xz _kola_temp'
+        archiveArtifacts '_kola_temp.tar.xz'
     }
 }
 
