@@ -13,7 +13,7 @@ properties([
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
-https://wiki.cyanogenmod.org/w/Doc:_Using_manifests#The_local_manifest"""),
+https://zifnab.net/~zifnab/wiki_dump/Doc%3A_Using_manifests%2Cen.html#The_local_manifest"""),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
