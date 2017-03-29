@@ -16,6 +16,9 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
         string(name: 'GS_DEVEL_CREDS',
@@ -57,18 +60,20 @@ node('coreos && amd64 && sudo') {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: params.GS_DEVEL_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-            ]) {
-                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                         "MANIFEST_REF=${params.MANIFEST_REF}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}",
-                         "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
-                    sh '''#!/bin/bash -ex
+            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                     ignoreMissing: true) {
+                withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_DEVEL_CREDS,
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                ]) {
+                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_URL=${params.MANIFEST_URL}",
+                             "BOARD=${params.BOARD}",
+                             "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
+                        sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
@@ -115,6 +120,7 @@ script build_packages --board=${BOARD} \
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */
+                    }
                 }
             }
         }
@@ -129,6 +135,7 @@ stage('Downstream') {
     build job: 'image-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
         string(name: 'GROUP', value: params.GROUP),
+        string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

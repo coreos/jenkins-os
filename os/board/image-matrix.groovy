@@ -18,6 +18,9 @@ properties([
                defaultValue: 'release.xml'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         string(name: 'GS_DEVEL_CREDS',
                defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                description: '''Credentials ID for a JSON file passed as the \
@@ -65,23 +68,25 @@ node('coreos && amd64 && sudo') {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: params.SIGNING_CREDS,
-                 variable: 'GPG_SECRET_KEY_FILE'],
-                [$class: 'FileBinding',
-                 credentialsId: UPLOAD_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-            ]) {
-                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                         "GROUP=${params.GROUP}",
-                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                         "MANIFEST_REF=${params.MANIFEST_REF}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}",
-                         "SIGNING_USER=${params.SIGNING_USER}",
-                         "UPLOAD_ROOT=${UPLOAD_ROOT}"]) {
-                    sh '''#!/bin/bash -ex
+            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                     ignoreMissing: true) {
+                withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: params.SIGNING_CREDS,
+                     variable: 'GPG_SECRET_KEY_FILE'],
+                    [$class: 'FileBinding',
+                     credentialsId: UPLOAD_CREDS,
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                ]) {
+                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                             "GROUP=${params.GROUP}",
+                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_URL=${params.MANIFEST_URL}",
+                             "BOARD=${params.BOARD}",
+                             "SIGNING_USER=${params.SIGNING_USER}",
+                             "UPLOAD_ROOT=${UPLOAD_ROOT}"]) {
+                        sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
@@ -129,6 +134,7 @@ script build_image --board=${BOARD} \
                    --upload_root="${UPLOAD_ROOT}" \
                    --upload prod container
 '''  /* Editor quote safety: ' */
+                    }
                 }
             }
         }
@@ -152,6 +158,7 @@ stage('Downstream') {
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                     string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
                     string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
                     string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
@@ -164,6 +171,7 @@ stage('Downstream') {
             else
                 build job: 'vm-matrix', parameters: [
                     string(name: 'BOARD', value: params.BOARD),
+                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
@@ -179,6 +187,7 @@ stage('Downstream') {
         'kola-qemu': {
             build job: '../kola/qemu', propagate: false, parameters: [
                 string(name: 'BOARD', value: params.BOARD),
+                string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),

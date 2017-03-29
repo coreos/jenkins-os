@@ -13,6 +13,9 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         string(name: 'DOWNLOAD_CREDS',
                defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                description: '''Credentials ID for a JSON file passed as the \
@@ -37,17 +40,19 @@ node('amd64 && kvm') {
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: params.DOWNLOAD_CREDS,
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["BOARD=${params.BOARD}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                     "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}"]) {
-                rc = sh returnStatus: true, script: '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.DOWNLOAD_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["BOARD=${params.BOARD}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}"]) {
+                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
 # clean up old test results
 rm -f tmp/*.tap
@@ -102,6 +107,7 @@ if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
                   "${DOWNLOAD_ROOT}/boards/${BOARD}/current-master/version.txt"
 fi
 '''  /* Editor quote safety: ' */
+                }
             }
         }
     }

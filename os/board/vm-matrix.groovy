@@ -13,6 +13,9 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
         string(name: 'GS_RELEASE_CREDS',
@@ -97,24 +100,26 @@ for (format in format_list) {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: params.SIGNING_CREDS,
-                 variable: 'GPG_SECRET_KEY_FILE'],
-                [$class: 'FileBinding',
-                 credentialsId: params.GS_RELEASE_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-            ]) {
-                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                         "MANIFEST_REF=${params.MANIFEST_REF}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}",
-                         "FORMAT=${FORMAT}",
-                         "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
-                         "SIGNING_USER=${params.SIGNING_USER}",
-                         "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
-                    sh '''#!/bin/bash -ex
+            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                     ignoreMissing: true) {
+                withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: params.SIGNING_CREDS,
+                     variable: 'GPG_SECRET_KEY_FILE'],
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_RELEASE_CREDS,
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                ]) {
+                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_URL=${params.MANIFEST_URL}",
+                             "BOARD=${params.BOARD}",
+                             "FORMAT=${FORMAT}",
+                             "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
+                             "SIGNING_USER=${params.SIGNING_USER}",
+                             "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                        sh '''#!/bin/bash -ex
 
 rm -f gce.properties
 sudo rm -rf tmp
@@ -170,6 +175,7 @@ script image_to_vm.sh --board=${BOARD} \
                       --upload_root="${UPLOAD_ROOT}" \
                       --upload
 '''  /* Editor quote safety: ' */
+                    }
                 }
             }
 
@@ -204,6 +210,7 @@ stage('Build') {
 stage('Downstream') {
     if (params.BOARD == 'amd64-usr')
         build job: '../kola/gce', propagate: false, parameters: [
+            string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
             string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
             string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),

@@ -13,6 +13,9 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
         string(name: 'GS_DEVEL_CREDS',
@@ -45,21 +48,23 @@ node('coreos && amd64 && sudo') {
                          fallbackToLastSuccessful: true,
                          upstreamFilterStrategy: 'UseGlobalSetting']])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: params.SIGNING_CREDS,
-             variable: 'GPG_SECRET_KEY_FILE'],
-            [$class: 'FileBinding',
-             credentialsId: params.GS_DEVEL_CREDS,
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                     "SIGNING_USER=${params.SIGNING_USER}",
-                     "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
-                sh '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.SIGNING_CREDS,
+                 variable: 'GPG_SECRET_KEY_FILE'],
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_DEVEL_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "SIGNING_USER=${params.SIGNING_USER}",
+                         "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
+                    sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
@@ -101,6 +106,7 @@ enter sudo ${S}/bootstrap_sdk \
 # Free some disk space only on success, for debugging failures
 sudo rm -rf src/build/catalyst/builds
 '''  /* Editor quote safety: ' */
+                }
             }
         }
     }

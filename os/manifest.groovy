@@ -180,6 +180,7 @@ stage('Downstream') {
     parallel failFast: false,
         sdk: {
             build job: 'sdk', parameters: [
+                string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
                 string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                 string(name: 'MANIFEST_REF', value: dprops.MANIFEST_REF),
@@ -193,6 +194,7 @@ stage('Downstream') {
         },
         toolchains: {
             build job: 'toolchains', parameters: [
+                string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
                 string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
                 string(name: 'GROUP', value: profile.GROUP),
                 string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),

@@ -12,9 +12,12 @@
     /*
      * The manifest-builds repository holds the manifest files for each
      * new build from Jenkins.  It creates new builds by pushing them
-     * over SSH, and all the other jobs clone the files over HTTPS.
+     * over SSH, and all the other jobs clone the repository.  The URL
+     * for cloning does not need to be over SSH if it is public, and in
+     * that case, its credentials ID can be omitted or left blank.
      */
     "BUILDS_CLONE_URL": "https://github.com/coreos/manifest-builds.git",
+    "BUILDS_CLONE_CREDS": "",
     "BUILDS_PUSH_URL": "ssh://git@github.com/coreos/manifest-builds.git",
     "BUILDS_PUSH_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
 

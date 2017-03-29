@@ -16,6 +16,9 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         string(name: 'GS_DEVEL_CREDS',
                defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                description: '''Credentials ID for a JSON file passed as the \
@@ -61,33 +64,36 @@ When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed wit
 }
 
 node('coreos && amd64 && sudo') {
-    stage('Amend') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+    ws("${env.WORKSPACE}/${params.BOARD}") {
+        stage('Amend') {
+            step([$class: 'CopyArtifact',
+                  fingerprintArtifacts: true,
+                  projectName: '/mantle/master-builder',
+                  selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: params.SIGNING_CREDS,
-             variable: 'GPG_SECRET_KEY_FILE'],
-            [$class: 'FileBinding',
-             credentialsId: params.GS_DEVEL_CREDS,
-             variable: 'GS_DEVEL_CREDS'],
-            [$class: 'FileBinding',
-             credentialsId: params.GS_RELEASE_CREDS,
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["COREOS_OFFICIAL=1",
-                     "GROUP=${params.GROUP}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                     "BOARD=${params.BOARD}",
-                     "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
-                     "SIGNING_USER=${params.SIGNING_USER}",
-                     "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
-                sh '''#!/bin/bash -ex
+            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                     ignoreMissing: true) {
+                withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: params.SIGNING_CREDS,
+                     variable: 'GPG_SECRET_KEY_FILE'],
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_DEVEL_CREDS,
+                     variable: 'GS_DEVEL_CREDS'],
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_RELEASE_CREDS,
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                ]) {
+                    withEnv(["COREOS_OFFICIAL=1",
+                             "GROUP=${params.GROUP}",
+                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_URL=${params.MANIFEST_URL}",
+                             "BOARD=${params.BOARD}",
+                             "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                             "SIGNING_USER=${params.SIGNING_USER}",
+                             "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                        sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
 
@@ -159,6 +165,8 @@ script image_inject_bootchain --board=${BOARD} \
                               --upload_root="${UPLOAD_ROOT}" \
                               --upload
 '''  /* Editor quote safety: ' */
+                    }
+                }
             }
         }
     }
@@ -167,6 +175,7 @@ script image_inject_bootchain --board=${BOARD} \
 stage('Downstream') {
     build job: 'vm-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
+        string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
         string(name: 'COREOS_OFFICIAL', value: '1'),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),

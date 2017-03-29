@@ -10,6 +10,9 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        string(name: 'BUILDS_CLONE_CREDS',
+               defaultValue: '',
+               description: 'Credential ID for SSH Git clone URLs'),
         string(name: 'GS_RELEASE_CREDS',
                defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                description: '''Credentials given here must have permission to \
@@ -33,16 +36,18 @@ node('amd64') {
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: params.GS_RELEASE_CREDS,
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                     "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
-                rc = sh returnStatus: true, script: '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_RELEASE_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
 BOARD=amd64-usr
 
@@ -72,6 +77,7 @@ timeout --signal=SIGQUIT 30m ./bin/kola --tapfile="${JOB_NAME##*/}.tap" \
     --gce-image="${GCE_NAME}" \
     run
 '''  /* Editor quote safety: ' */
+                }
             }
         }
     }
