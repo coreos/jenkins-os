@@ -35,6 +35,10 @@ Google Storage URL, requires write permission'''),
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
+        text(name: 'SIGNING_VERIFY',
+             defaultValue: '',
+             description: '''Public key to verify signed files, or blank to \
+use the built-in buildbot public key'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -100,6 +104,8 @@ for (format in format_list) {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
+            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+
             sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                      ignoreMissing: true) {
                 withCredentials([
@@ -151,11 +157,14 @@ trap "rm -rf '${GNUPGHOME}'" EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
+[ -s verify.gpg.pub ] && verify_key=--verify-key=verify.gpg.pub || verify_key=
+
 mkdir -p src tmp
 ./bin/cork download-image --root="${UPLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
                           --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
                           --cache-dir=./src \
-                          --platform=qemu
+                          --platform=qemu \
+                          --verify=true $verify_key
 img=src/coreos_production_image.bin
 if [[ "${img}.bz2" -nt "${img}" ]]; then
   enter lbunzip2 -k -f "/mnt/host/source/${img}.bz2"

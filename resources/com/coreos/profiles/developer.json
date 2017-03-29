@@ -55,8 +55,12 @@
      * All of the files resulting from the build (OS images, firmware,
      * digests, etc.) are signed with the following GPG key.  The given
      * credentials ID should point to the private key file to be used,
-     * and the e-mail address identifies it to the GPG command.
+     * and the e-mail address identifies it to the GPG command.  The
+     * public key's entire armored contents should be pasted as the
+     * multi-line string value of SIGNING_VERIFY.  When left blank, the
+     * built-in buildbot public key is used for verification.
      */
     "SIGNING_CREDS": "buildbot-official.2E16137F.subkey.gpg",
     "SIGNING_USER": "buildbot@coreos.com",
+    "SIGNING_VERIFY": "",
 }

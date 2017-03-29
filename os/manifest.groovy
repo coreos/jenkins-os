@@ -207,6 +207,7 @@ stage('Downstream') {
                 string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
                 string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                string(name: 'SIGNING_VERIFY', value: profile.SIGNING_VERIFY),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }

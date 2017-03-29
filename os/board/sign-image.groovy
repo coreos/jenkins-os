@@ -44,6 +44,10 @@ Google Storage URL, requires write permission'''),
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
+        text(name: 'SIGNING_VERIFY',
+             defaultValue: '',
+             description: '''Public key to verify signed files, or blank to \
+use the built-in buildbot public key'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -70,6 +74,8 @@ node('coreos && amd64 && sudo') {
                   fingerprintArtifacts: true,
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
+
+            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
 
             sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                      ignoreMissing: true) {
@@ -129,11 +135,14 @@ grub=coreos_production_image.grub
 shim=coreos_production_image.shim
 [[ ${BOARD} == amd64-usr ]] || shim=
 
+[ -s verify.gpg.pub ] && verify_key=--verify-key=verify.gpg.pub || verify_key=
+
 mkdir -p src tmp
 ./bin/cork download-image --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
                           --json-key="${GS_DEVEL_CREDS}" \
                           --cache-dir=./src \
-                          --platform=qemu
+                          --platform=qemu \
+                          --verify=true $verify_key
 img=src/coreos_production_image.bin
 [[ "${img}.bz2" -nt "${img}" ]] && enter lbunzip2 -k -f "/mnt/host/source/${img}.bz2"
 
@@ -185,6 +194,7 @@ stage('Downstream') {
         string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
         string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
         string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+        text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
     ]
 }
