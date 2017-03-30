@@ -7,9 +7,6 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
-        string(name: 'GROUP',
-               defaultValue: 'developer',
-               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -114,7 +111,6 @@ for (format in format_list) {
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "BOARD=${params.BOARD}",
                          "FORMAT=${FORMAT}",
-                         "GROUP=${params.GROUP}",
                          "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
                          "SIGNING_USER=${params.SIGNING_USER}",
                          "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
@@ -130,13 +126,6 @@ sudo rm -rf tmp
                   --manifest-url "${MANIFEST_URL}" \
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
-
-# check that the matrix didn't go bananas
-if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  [[ "${GROUP}" != developer ]]
-else
-  [[ "${GROUP}" == developer ]]
-fi
 
 script() {
   local script="/mnt/host/source/src/scripts/${1}"; shift
@@ -215,11 +204,11 @@ stage('Build') {
 stage('Downstream') {
     if (params.BOARD == 'amd64-usr')
         build job: '../kola/gce', propagate: false, parameters: [
-            string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-            string(name: 'GROUP', value: params.GROUP),
             string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
             string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+            string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
 }

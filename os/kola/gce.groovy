@@ -4,17 +4,19 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        string(name: 'GROUP',
-               defaultValue: 'developer',
-               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
-        choice(name: 'COREOS_OFFICIAL',
-               choices: "0\n1"),
+        string(name: 'GS_RELEASE_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials given here must have permission to \
+download release storage files, create compute images, and run instances'''),
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where image files are downloaded'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -29,19 +31,17 @@ node('amd64') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
               projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector',
-                         stable: false]])
+              selector: [$class: 'StatusBuildSelector', stable: false]])
 
         withCredentials([
             [$class: 'FileBinding',
-             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+             credentialsId: params.GS_RELEASE_CREDS,
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
-            withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                     "GROUP=${params.GROUP}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
+            withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}"]) {
+                     "MANIFEST_URL=${params.MANIFEST_URL}",
+                     "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
                 rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
 BOARD=amd64-usr
@@ -52,18 +52,12 @@ short_ref="${MANIFEST_REF#refs/tags/}"
 git clone --depth 1 --branch "${short_ref}" "${MANIFEST_URL}" manifests
 source manifests/version.txt
 
-if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/${GROUP}"
-else
-  root="gs://builds.developer.core-os.net"
-fi
-
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
 ./bin/ore create-image \
     --board="${BOARD}" \
     --version="${COREOS_VERSION}" \
-    --source-root="${root}/boards" \
+    --source-root="${DOWNLOAD_ROOT}/boards" \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --family="${NAME}"
 

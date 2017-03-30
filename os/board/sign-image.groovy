@@ -167,8 +167,7 @@ script image_inject_bootchain --board=${BOARD} \
 stage('Downstream') {
     build job: 'vm-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
-        string(name: 'GROUP', value: params.GROUP),
-        string(name: 'COREOS_OFFICIAL', '1'),
+        string(name: 'COREOS_OFFICIAL', value: '1'),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
