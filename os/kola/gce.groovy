@@ -24,7 +24,7 @@ properties([
 /* The kola step doesn't fail the job, so save the return code separately.  */
 def rc = 0
 
-node('gce') {  /* This needs "Read Write" on "Compute Engine" access scope.  */
+node('amd64') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -32,11 +32,16 @@ node('gce') {  /* This needs "Read Write" on "Compute Engine" access scope.  */
               selector: [$class: 'StatusBuildSelector',
                          stable: false]])
 
-        withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                 "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                 "MANIFEST_REF=${params.MANIFEST_REF}",
-                 "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-            rc = sh returnStatus: true, script: '''#!/bin/bash -ex
+        withCredentials([
+            [$class: 'FileBinding',
+             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+        ]) {
+            withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                     "MANIFEST_REF=${params.MANIFEST_REF}",
+                     "MANIFEST_URL=${params.MANIFEST_URL}"]) {
+                rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
 BOARD=amd64-usr
 
@@ -58,7 +63,7 @@ NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
     --board="${BOARD}" \
     --version="${COREOS_VERSION}" \
     --source-root="${root}/boards" \
-    --service-auth=true \
+    --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --family="${NAME}"
 
 GCE_NAME="${NAME}-${COREOS_VERSION}"
@@ -68,10 +73,11 @@ GCE_NAME="${GCE_NAME//+/-}"
 timeout --signal=SIGQUIT 30m ./bin/kola --tapfile="${JOB_NAME##*/}.tap" \
     --parallel=4 \
     --platform=gce \
-    --gce-service-auth \
+    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --gce-image="${GCE_NAME}" \
     run
 '''  /* Editor quote safety: ' */
+            }
         }
     }
 
