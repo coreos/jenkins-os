@@ -121,6 +121,8 @@ script() {
   enter "${script}" "$@"
 }
 
+sudo cp bin/gangue chroot/usr/bin/gangue  # XXX: until SDK mantle has it
+
 source .repo/manifests/version.txt
 export COREOS_BUILD_ID
 
