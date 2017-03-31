@@ -8,8 +8,11 @@ properties([
                defaultValue: 'master',
                description: 'Manifest branch or tag to build'),
         string(name: 'PROFILE',
-               defaultValue: 'default',
-               description: 'Which JSON build profile to load (e.g. beta)'),
+               defaultValue: 'default:developer',
+               description: '''Which JSON build profile to load from a Groovy \
+library resource named com/coreos/profiles/developer.json, for example.\n
+This value takes a colon-separated list of names to try, using the first one \
+that exists and can be parsed successfully.'''),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
@@ -20,8 +23,7 @@ https://zifnab.net/~zifnab/wiki_dump/Doc%3A_Using_manifests%2Cen.html#The_local_
     ])
 ])
 
-/* Parse the build profile values from library resources.  */
-def profile = [:]
+/* Try to work on instances whether they have trusted libraries or not.  */
 Map loadProfileTrusted(String name) {
     def map = parseJson libraryResource("com/coreos/profiles/${name}.json")
     return map?.PARENT ? loadProfileTrusted(map.PARENT) + map : map
@@ -32,13 +34,29 @@ Map loadProfileDirect(String name) {
     ).parseText(libraryResource("com/coreos/profiles/${name}.json"))
     return map?.PARENT ? loadProfileDirect(map.PARENT) + map : map
 }
-try {
-    profile = loadProfileTrusted(params.PROFILE ?: 'default')
-} catch (exc) {
-    echo 'Failed to use a trusted library to parse JSON...'
-    echo "Attempting to parse it directly and hoping the sandbox won't abort."
-    profile = loadProfileDirect(params.PROFILE ?: 'default')
+
+/* Parse the first working build profile values from library resources.  */
+def profile = [:]
+ArrayList<String> search_list = params.PROFILE.trim().split(':')
+for (profile_name in search_list) {
+    try {
+        try {
+            profile = loadProfileTrusted(profile_name)
+            break
+        } catch (NoSuchMethodError err) {
+            echo 'Failed to use a trusted library to parse JSON...'
+            echo "Attempting direct parsing and hoping the sandbox won't quit."
+            profile = loadProfileDirect(profile_name)
+            break
+        }
+    } catch (hudson.AbortException err) {
+        echo "Could not load the ${profile_name} profile..."
+    }
 }
+
+/* Sanity check that profile values were loaded.  */
+if (!profile.BUILDS_PUSH_URL)
+    throw new Exception('A build profile was not loaded')
 
 def dprops = [:]  /* Store properties read from an artifact later.  */
 
