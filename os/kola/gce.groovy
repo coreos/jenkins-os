@@ -38,6 +38,7 @@ node('amd64') {
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
             withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                     "GROUP=${params.GROUP}",
                      "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
                      "MANIFEST_URL=${params.MANIFEST_URL}"]) {

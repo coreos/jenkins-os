@@ -51,7 +51,8 @@ node('coreos && amd64 && sudo') {
              credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
-            withEnv(["GROUP=${params.GROUP}",
+            withEnv(["COREOS_OFFICIAL=1",
+                     "GROUP=${params.GROUP}",
                      "MANIFEST_NAME=${params.MANIFEST_NAME}",
                      "MANIFEST_REF=${params.MANIFEST_REF}",
                      "MANIFEST_URL=${params.MANIFEST_URL}",
