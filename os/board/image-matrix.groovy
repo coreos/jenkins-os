@@ -72,12 +72,17 @@ node('coreos && amd64 && sudo') {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
+            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+
             sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                      ignoreMissing: true) {
                 withCredentials([
                     [$class: 'FileBinding',
                      credentialsId: params.SIGNING_CREDS,
                      variable: 'GPG_SECRET_KEY_FILE'],
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_DEVEL_CREDS,
+                     variable: 'GS_DEVEL_CREDS'],
                     [$class: 'FileBinding',
                      credentialsId: UPLOAD_CREDS,
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS']
@@ -88,6 +93,7 @@ node('coreos && amd64 && sudo') {
                              "MANIFEST_REF=${params.MANIFEST_REF}",
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
+                             "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
                              "SIGNING_USER=${params.SIGNING_USER}",
                              "UPLOAD_ROOT=${UPLOAD_ROOT}"]) {
                         sh '''#!/bin/bash -ex
@@ -103,9 +109,24 @@ node('coreos && amd64 && sudo') {
 # first thing, clear out old images
 sudo rm -rf src/build
 
+enter() {
+  sudo ln -f "${GS_DEVEL_CREDS}" chroot/etc/portage/gangue.json
+  [ -s verify.gpg.pub ] &&
+  sudo ln -f verify.gpg.pub chroot/etc/portage/gangue.gpg.pub &&
+  verify_key=--verify-key=/etc/portage/gangue.gpg.pub
+  trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
+  ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="${DOWNLOAD_ROOT}" \
+    PORTAGE_SSH_OPTS= \
+    {FETCH,RESUME}COMMAND_GS="/usr/bin/gangue get \
+--json-key=/etc/portage/gangue.json $verify_key \
+"'"${URI}" "${DISTDIR}/${FILE}"' \
+    "$@"
+}
+
 script() {
   local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -178,6 +199,8 @@ stage('Downstream') {
                     string(name: 'BOARD', value: params.BOARD),
                     string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                    string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+                    string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),

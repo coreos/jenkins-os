@@ -64,9 +64,14 @@ node('coreos && amd64 && sudo') {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
+            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+
             sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                      ignoreMissing: true) {
                 withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: params.SIGNING_CREDS,
+                     variable: 'GPG_SECRET_KEY_FILE'],
                     [$class: 'FileBinding',
                      credentialsId: params.GS_DEVEL_CREDS,
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS']
@@ -76,6 +81,8 @@ node('coreos && amd64 && sudo') {
                              "MANIFEST_REF=${params.MANIFEST_REF}",
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
+                             "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                             "SIGNING_USER=${params.SIGNING_USER}",
                              "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                         sh '''#!/bin/bash -ex
 
@@ -93,9 +100,20 @@ node('coreos && amd64 && sudo') {
 mkdir -p .cache/ccache
 
 enter() {
+  sudo ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" chroot/etc/portage/gangue.json
+  [ -s verify.gpg.pub ] &&
+  sudo ln -f verify.gpg.pub chroot/etc/portage/gangue.gpg.pub &&
+  verify_key=--verify-key=/etc/portage/gangue.gpg.pub
+  trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
   ./bin/cork enter --experimental -- env \
-    CCACHE_DIR="/mnt/host/source/.cache/ccache" \
-    CCACHE_MAXSIZE="5G" "$@"
+    CCACHE_DIR=/mnt/host/source/.cache/ccache \
+    CCACHE_MAXSIZE=5G \
+    COREOS_DEV_BUILDS="${DOWNLOAD_ROOT}" \
+    PORTAGE_SSH_OPTS= \
+    {FETCH,RESUME}COMMAND_GS="/usr/bin/gangue get \
+--json-key=/etc/portage/gangue.json $verify_key \
+"'"${URI}" "${DISTDIR}/${FILE}"' \
+    "$@"
 }
 
 script() {
@@ -105,6 +123,13 @@ script() {
 
 source .repo/manifests/version.txt
 export COREOS_BUILD_ID
+
+# Set up GPG for signing images
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import "${GPG_SECRET_KEY_FILE}"
 
 # figure out if ccache is doing us any good in this scheme
 enter ccache --zero-stats
@@ -119,6 +144,8 @@ script build_packages --board=${BOARD} \
                       --skip_chroot_upgrade \
                       --getbinpkgver=${COREOS_VERSION} \
                       --toolchainpkgonly \
+                      --sign="${SIGNING_USER}" \
+                      --sign_digests="${SIGNING_USER}" \
                       --upload_root="${UPLOAD_ROOT}" \
                       --upload
 

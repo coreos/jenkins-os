@@ -18,6 +18,14 @@ properties([
                description: 'Credential ID for SSH Git clone URLs'),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'GS_DEVEL_CREDS',
+               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+               description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading development files to the \
+Google Storage URL, requires write permission'''),
+        string(name: 'GS_DEVEL_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
         string(name: 'GS_RELEASE_CREDS',
                defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                description: '''Credentials ID for a JSON file passed as the \
@@ -113,6 +121,9 @@ for (format in format_list) {
                      credentialsId: params.SIGNING_CREDS,
                      variable: 'GPG_SECRET_KEY_FILE'],
                     [$class: 'FileBinding',
+                     credentialsId: params.GS_DEVEL_CREDS,
+                     variable: 'GS_DEVEL_CREDS'],
+                    [$class: 'FileBinding',
                      credentialsId: params.GS_RELEASE_CREDS,
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS']
                 ]) {
@@ -123,6 +134,7 @@ for (format in format_list) {
                              "BOARD=${params.BOARD}",
                              "FORMAT=${FORMAT}",
                              "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
+                             "GS_DEVEL_ROOT=${params.GS_DEVEL_ROOT}",
                              "SIGNING_USER=${params.SIGNING_USER}",
                              "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
                         sh '''#!/bin/bash -ex
@@ -138,13 +150,24 @@ sudo rm -rf tmp
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
+enter() {
+  sudo ln -f "${GS_DEVEL_CREDS}" chroot/etc/portage/gangue.json
+  [ -s verify.gpg.pub ] &&
+  sudo ln -f verify.gpg.pub chroot/etc/portage/gangue.gpg.pub &&
+  verify_key=--verify-key=/etc/portage/gangue.gpg.pub
+  trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
+  ./bin/cork enter --experimental -- env \
+    COREOS_DEV_BUILDS="${GS_DEVEL_ROOT}" \
+    PORTAGE_SSH_OPTS= \
+    {FETCH,RESUME}COMMAND_GS="/usr/bin/gangue get \
+--json-key=/etc/portage/gangue.json $verify_key \
+"'"${URI}" "${DISTDIR}/${FILE}"' \
+    "$@"
 }
 
-enter() {
-  ./bin/cork enter --experimental -- "$@"
+script() {
+  local script="/mnt/host/source/src/scripts/${1}"; shift
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt

@@ -111,13 +111,13 @@ sudo rm -rf gce.properties src tmp
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
-}
-
 enter() {
   ./bin/cork enter --experimental -- "$@"
+}
+
+script() {
+  local script="/mnt/host/source/src/scripts/${1}"; shift
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -186,6 +186,8 @@ stage('Downstream') {
         string(name: 'BOARD', value: params.BOARD),
         string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
         string(name: 'COREOS_OFFICIAL', value: '1'),
+        string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+        string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
