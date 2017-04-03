@@ -8,8 +8,6 @@ properties([
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
                defaultValue: 'refs/tags/'),
-        string(name: 'MANIFEST_NAME',
-               defaultValue: 'release.xml'),
         string(name: 'BUILDS_CLONE_CREDS',
                defaultValue: '',
                description: 'Credential ID for SSH Git clone URLs'),
@@ -43,15 +41,13 @@ node('amd64') {
                  credentialsId: params.GS_RELEASE_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
-                withEnv(["MANIFEST_NAME=${params.MANIFEST_NAME}",
+                withEnv(["BOARD=amd64-usr",
+                         "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                         "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-BOARD=amd64-usr
-
-rm -rf *.tap manifests
+sudo rm -rf *.tap manifests _kola_temp*
 
 short_ref="${MANIFEST_REF#refs/tags/}"
 git clone --depth 1 --branch "${short_ref}" "${MANIFEST_URL}" manifests
@@ -59,23 +55,21 @@ source manifests/version.txt
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
-./bin/ore create-image \
+bin/ore create-image \
     --board="${BOARD}" \
-    --version="${COREOS_VERSION}" \
-    --source-root="${DOWNLOAD_ROOT}/boards" \
+    --family="${NAME}" \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --family="${NAME}"
+    --source-root="${DOWNLOAD_ROOT}/boards" \
+    --version="${COREOS_VERSION}"
 
-GCE_NAME="${NAME}-${COREOS_VERSION}"
-GCE_NAME="${GCE_NAME//./-}"
-GCE_NAME="${GCE_NAME//+/-}"
+GCE_NAME="${NAME//[+.]/-}-${COREOS_VERSION//[+.]/-}"
 
-timeout --signal=SIGQUIT 30m ./bin/kola --tapfile="${JOB_NAME##*/}.tap" \
+timeout --signal=SIGQUIT 30m bin/kola run \
+    --gce-image="${GCE_NAME}" \
+    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --parallel=4 \
     --platform=gce \
-    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --gce-image="${GCE_NAME}" \
-    run
+    --tapfile="${JOB_NAME##*/}.tap"
 '''  /* Editor quote safety: ' */
                 }
             }

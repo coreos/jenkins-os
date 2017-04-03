@@ -54,20 +54,16 @@ node('amd64 && kvm') {
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["BOARD=${params.BOARD}",
+                         "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}"]) {
+                         "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-# clean up old test results
-rm -f tmp/*.tap
-
-# build may not be started without a ref value
-[[ -n "${MANIFEST_REF#refs/tags/}" ]]
+sudo rm -rf src/scripts/_kola_temp tmp _kola_temp*
 
 enter() {
-  ./bin/cork enter --experimental -- "$@"
+  bin/cork enter --experimental -- "$@"
 }
 
 script() {
@@ -84,11 +80,12 @@ source .repo/manifests/version.txt
 [ -s verify.gpg.pub ] && verify_key=--verify-key=verify.gpg.pub || verify_key=
 
 mkdir -p tmp
-./bin/cork download-image --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
-                          --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-                          --cache-dir=./tmp \
-                          --platform=qemu \
-                          --verify=true $verify_key
+bin/cork download-image \
+    --cache-dir=tmp \
+    --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+    --platform=qemu \
+    --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
+    --verify=true $verify_key
 enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 
 bios=bios-256k.bin
@@ -105,11 +102,13 @@ sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
 sudo cp -t chroot/usr/bin bin/[b-z]*
 
-enter sudo timeout --signal=SIGQUIT 60m kola run --board="${BOARD}" \
-                     --parallel=2 \
-                     --qemu-bios="$bios" \
-                     --qemu-image="/mnt/host/source/tmp/coreos_production_image.bin" \
-                     --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
+enter sudo timeout --signal=SIGQUIT 60m kola run \
+    --board="${BOARD}" \
+    --parallel=2 \
+    --platform=qemu \
+    --qemu-bios="$bios" \
+    --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
+    --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
 
 if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
   enter gsutil cp "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/version.txt" \
