@@ -4,9 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -53,7 +50,7 @@ node('amd64 && kvm') {
                  credentialsId: params.DOWNLOAD_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
-                withEnv(["BOARD=${params.BOARD}",
+                withEnv(["BOARD=amd64-usr",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
@@ -88,15 +85,6 @@ bin/cork download-image \
     --verify=true $verify_key
 enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 
-bios=bios-256k.bin
-if [[ "${BOARD}" == arm64* ]]; then
-  script setup_board --board=${BOARD} \
-                     --getbinpkgver="${COREOS_VERSION}" \
-                     --regen_configs_only
-  enter "emerge-${BOARD}" --nodeps -qugKN sys-firmware/edk2-armvirt
-  bios="/build/${BOARD}/usr/share/edk2-armvirt/bios.bin"
-fi
-
 # copy all of the latest mantle binaries into the chroot
 sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
@@ -106,7 +94,7 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --board="${BOARD}" \
     --parallel=2 \
     --platform=qemu \
-    --qemu-bios="$bios" \
+    --qemu-bios=bios-256k.bin \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
     --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
 
@@ -137,8 +125,6 @@ fi
               todoIsFailure: false,
               validateNumberOfTests: true,
               verbose: true])
-
-        fingerprint 'tmp/*,chroot/var/lib/portage/pkgs/*/*.tbz2'
 
         sh 'tar -C src/scripts -cJf _kola_temp.tar.xz _kola_temp'
         archiveArtifacts '_kola_temp.tar.xz'
