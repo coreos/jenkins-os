@@ -242,13 +242,29 @@ stage('Build') {
 }
 
 stage('Downstream') {
-    if (params.BOARD == 'amd64-usr')
-        build job: '../kola/gce', propagate: false, parameters: [
-            string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-            string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-            string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
-            string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-        ]
+    parallel failFast: false,
+        'kola-gce': {
+            if (params.BOARD == 'amd64-usr')
+                build job: '../kola/gce', propagate: false, parameters: [
+                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                    string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                    string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+        },
+        'kola-qemu_uefi': {
+            build job: '../kola/qemu_uefi', propagate: false, parameters: [
+                string(name: 'BOARD', value: params.BOARD),
+                string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
+                string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+                text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+            ]
+        }
 }
