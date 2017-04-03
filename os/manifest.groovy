@@ -82,17 +82,23 @@ node('coreos && amd64 && sudo') {
                          upstreamFilterStrategy: 'UseGlobalSetting']])
 
         sshagent([profile.BUILDS_PUSH_CREDS]) {
-            /* Work around JENKINS-35230 (broken GIT_* variables).  */
-            withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
-                     "BUILDS_CLONE_URL=${profile.BUILDS_CLONE_URL}",
-                     "BUILDS_PUSH_URL=${profile.BUILDS_PUSH_URL}",
-                     "GIT_AUTHOR_EMAIL=${profile.GIT_AUTHOR_EMAIL}",
-                     "GIT_AUTHOR_NAME=${profile.GIT_AUTHOR_NAME}",
-                     'GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
-                     'GIT_COMMIT=' + sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim(),
-                     'GIT_URL=' + sh(returnStdout: true, script: 'git -C manifest remote get-url origin').trim(),
-                     "LOCAL_MANIFEST=${params.LOCAL_MANIFEST}"]) {
-                sh '''#!/bin/bash -ex
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: profile.SIGNING_CREDS,
+                 variable: 'GPG_SECRET_KEY_FILE']
+            ]) {
+                /* Work around JENKINS-35230 (broken GIT_* variables).  */
+                withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
+                         "BUILDS_CLONE_URL=${profile.BUILDS_CLONE_URL}",
+                         "BUILDS_PUSH_URL=${profile.BUILDS_PUSH_URL}",
+                         "GIT_AUTHOR_EMAIL=${profile.GIT_AUTHOR_EMAIL}",
+                         "GIT_AUTHOR_NAME=${profile.GIT_AUTHOR_NAME}",
+                         'GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
+                         'GIT_COMMIT=' + sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim(),
+                         'GIT_URL=' + sh(returnStdout: true, script: 'git -C manifest remote get-url origin').trim(),
+                         "LOCAL_MANIFEST=${params.LOCAL_MANIFEST}",
+                         "SIGNING_USER=${profile.SIGNING_USER}"]) {
+                    sh '''#!/bin/bash -ex
 
 export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
 
@@ -164,6 +170,13 @@ COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 git add version.txt
 
+# Set up GPG for signing tags
+export GNUPGHOME="${PWD}/.gnupg"
+sudo rm -rf "${GNUPGHOME}"
+trap "sudo rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import "${GPG_SECRET_KEY_FILE}"
+
 GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
 GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
 export GIT_COMMITTER_EMAIL GIT_COMMITTER_NAME
@@ -171,7 +184,7 @@ git commit \
   -m "${COREOS_BUILD_ID}: add build manifest" \
   -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
   -m "${BUILD_URL}"
-git tag -m "${COREOS_BUILD_ID}" "${COREOS_BUILD_ID}" HEAD
+git tag -u "${SIGNING_USER}" -m "${COREOS_BUILD_ID}" "${COREOS_BUILD_ID}" HEAD
 
 # assert that what we just did will work, update symlink because verify doesn't have a --manifest-name option yet
 cd "${WORKSPACE}"
@@ -180,6 +193,7 @@ ln -sf "manifests/${COREOS_BUILD_ID}.xml" .repo/manifest.xml
 
 finish "${COREOS_BUILD_ID}"
 '''  /* Editor quote safety: ' */
+                }
             }
         }
     }
