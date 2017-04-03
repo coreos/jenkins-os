@@ -13,14 +13,20 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
-        string(name: 'BUILDS_CLONE_CREDS',
-               defaultValue: '',
-               description: 'Credential ID for SSH Git clone URLs'),
-        string(name: 'DOWNLOAD_CREDS',
-               defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-               description: '''Credentials ID for a JSON file passed as the \
-GOOGLE_APPLICATION_CREDENTIALS value for uploading image files from the \
-Google Storage URL, requires read permission'''),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
+         defaultValue: '',
+         description: 'Credential ID for SSH Git clone URLs',
+         name: 'BUILDS_CLONE_CREDS',
+         required: false],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for downloading release files from the \
+Google Storage URL, requires read permission''',
+         name: 'DOWNLOAD_CREDS',
+         required: true],
         string(name: 'DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
