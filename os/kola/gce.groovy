@@ -4,17 +4,26 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        string(name: 'GROUP',
-               defaultValue: 'developer',
-               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
                defaultValue: 'refs/tags/'),
-        string(name: 'MANIFEST_NAME',
-               defaultValue: 'release.xml'),
-        choice(name: 'COREOS_OFFICIAL',
-               choices: "0\n1"),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
+         defaultValue: '',
+         description: 'Credential ID for SSH Git clone URLs',
+         name: 'BUILDS_CLONE_CREDS',
+         required: false],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         description: '''Credentials given here must have permission to \
+download release storage files, create compute images, and run instances''',
+         name: 'GS_RELEASE_CREDS',
+         required: true],
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where image files are downloaded'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -29,55 +38,46 @@ node('amd64') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
               projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector',
-                         stable: false]])
+              selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                     "GROUP=${params.GROUP}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-                rc = sh returnStatus: true, script: '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_RELEASE_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["BOARD=amd64-usr",
+                         "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}"]) {
+                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-BOARD=amd64-usr
-
-rm -rf *.tap manifests
+sudo rm -rf *.tap manifests _kola_temp*
 
 short_ref="${MANIFEST_REF#refs/tags/}"
 git clone --depth 1 --branch "${short_ref}" "${MANIFEST_URL}" manifests
 source manifests/version.txt
 
-if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  root="gs://builds.release.core-os.net/${GROUP}"
-else
-  root="gs://builds.developer.core-os.net"
-fi
-
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
-./bin/ore create-image \
+bin/ore create-image \
     --board="${BOARD}" \
-    --version="${COREOS_VERSION}" \
-    --source-root="${root}/boards" \
+    --family="${NAME}" \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --family="${NAME}"
+    --source-root="${DOWNLOAD_ROOT}/boards" \
+    --version="${COREOS_VERSION}"
 
-GCE_NAME="${NAME}-${COREOS_VERSION}"
-GCE_NAME="${GCE_NAME//./-}"
-GCE_NAME="${GCE_NAME//+/-}"
+GCE_NAME="${NAME//[+.]/-}-${COREOS_VERSION//[+.]/-}"
 
-timeout --signal=SIGQUIT 30m ./bin/kola --tapfile="${JOB_NAME##*/}.tap" \
+timeout --signal=SIGQUIT 30m bin/kola run \
+    --gce-image="${GCE_NAME}" \
+    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --parallel=4 \
     --platform=gce \
-    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --gce-image="${GCE_NAME}" \
-    run
+    --tapfile="${JOB_NAME##*/}.tap"
 '''  /* Editor quote safety: ' */
+                }
             }
         }
     }

@@ -7,17 +7,40 @@ properties([
                               numToKeepStr: '50')),
 
     parameters([
-        booleanParam(name: 'USE_CACHE',
-                     defaultValue: false,
-                     description: 'Enable use of any binary packages cached locally from previous builds.'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
+         defaultValue: '',
+         description: 'Credential ID for SSH Git clone URLs',
+         name: 'BUILDS_CLONE_CREDS',
+         required: false],
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading development files to the \
+Google Storage URL, requires write permission''',
+         name: 'GS_DEVEL_CREDS',
+         required: true],
+        string(name: 'GS_DEVEL_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
+         description: 'Credential ID for a GPG private key file',
+         name: 'SIGNING_CREDS',
+         required: true],
+        string(name: 'SIGNING_USER',
+               defaultValue: 'buildbot@coreos.com',
+               description: 'E-mail address to identify the GPG key'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -34,20 +57,23 @@ node('coreos && amd64 && sudo') {
                          fallbackToLastSuccessful: true,
                          upstreamFilterStrategy: 'UseGlobalSetting']])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
-             variable: 'GPG_SECRET_KEY_FILE'],
-            [$class: 'FileBinding',
-             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                     'USE_CACHE=' + (params.USE_CACHE ? 'true' : 'false')]) {
-                sh '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.SIGNING_CREDS,
+                 variable: 'GPG_SECRET_KEY_FILE'],
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_DEVEL_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "SIGNING_USER=${params.SIGNING_USER}",
+                         "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
+                    sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
 [[ -n "${MANIFEST_REF#refs/tags/}" ]]
@@ -74,22 +100,22 @@ trap "sudo rm -rf '${GNUPGHOME}'" EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
-# Wipe all of catalyst or just clear out old tarballs taking up space
-sudo rm -rf src/build/catalyst/builds
-if [[ "${COREOS_OFFICIAL:-0}" -eq 1 || "$USE_CACHE" == false ]]; then
-    sudo rm -rf src/build
-fi
+# Wipe all of catalyst
+sudo rm -rf src/build
 
 S=/mnt/host/source/src/scripts
 enter ${S}/update_chroot
 enter sudo emerge -uv --jobs=2 catalyst
 enter sudo ${S}/bootstrap_sdk \
-    --sign buildbot@coreos.com --sign_digests buildbot@coreos.com \
-    --upload --upload_root gs://builds.developer.core-os.net
+    --sign="${SIGNING_USER}" \
+    --sign_digests="${SIGNING_USER}" \
+    --upload_root="${UPLOAD_ROOT}" \
+    --upload
 
 # Free some disk space only on success, for debugging failures
 sudo rm -rf src/build/catalyst/builds
 '''  /* Editor quote safety: ' */
+                }
             }
         }
     }

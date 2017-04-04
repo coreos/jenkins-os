@@ -16,6 +16,50 @@ properties([
                defaultValue: 'refs/tags/'),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
+         defaultValue: '',
+         description: 'Credential ID for SSH Git clone URLs',
+         name: 'BUILDS_CLONE_CREDS',
+         required: false],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for downloading development files from the \
+Google Storage URL, requires read permission''',
+         name: 'GS_DEVEL_CREDS',
+         required: true],
+        string(name: 'GS_DEVEL_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+         description: '''Credentials ID for a JSON file passed as the \
+GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
+Google Storage URL, requires write permission''',
+         name: 'GS_RELEASE_CREDS',
+         required: true],
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are downloaded'),
+        string(name: 'GS_RELEASE_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where release files are uploaded'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
+         description: 'Credential ID for a GPG private key file',
+         name: 'SIGNING_CREDS',
+         required: true],
+        string(name: 'SIGNING_USER',
+               defaultValue: 'buildbot@coreos.com',
+               description: 'E-mail address to identify the GPG key'),
+        text(name: 'SIGNING_VERIFY',
+             defaultValue: '',
+             description: '''Public key to verify signed files, or blank to \
+use the built-in buildbot public key'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -24,7 +68,7 @@ properties([
 
 stage('Wait') {
     def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
-    def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to https://console.cloud.google.com/storage/browser/builds.release.core-os.net/signed/boards/${params.BOARD}/${version} to continue.\n
+    def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to continue.\n
 When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
 
     try {
@@ -36,28 +80,38 @@ When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed wit
 }
 
 node('coreos && amd64 && sudo') {
-    stage('Amend') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector',
-                         stable: false]])
+    ws("${env.WORKSPACE}/${params.BOARD}") {
+        stage('Amend') {
+            step([$class: 'CopyArtifact',
+                  fingerprintArtifacts: true,
+                  projectName: '/mantle/master-builder',
+                  selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: 'buildbot-official.2E16137F.subkey.gpg',
-             variable: 'GPG_SECRET_KEY_FILE'],
-            [$class: 'FileBinding',
-             credentialsId: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-        ]) {
-            withEnv(["COREOS_OFFICIAL=1",
-                     "GROUP=${params.GROUP}",
-                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                     "MANIFEST_REF=${params.MANIFEST_REF}",
-                     "MANIFEST_URL=${params.MANIFEST_URL}",
-                     "BOARD=${params.BOARD}"]) {
-                sh '''#!/bin/bash -ex
+            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+
+            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                     ignoreMissing: true) {
+                withCredentials([
+                    [$class: 'FileBinding',
+                     credentialsId: params.SIGNING_CREDS,
+                     variable: 'GPG_SECRET_KEY_FILE'],
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_DEVEL_CREDS,
+                     variable: 'GS_DEVEL_CREDS'],
+                    [$class: 'FileBinding',
+                     credentialsId: params.GS_RELEASE_CREDS,
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                ]) {
+                    withEnv(["COREOS_OFFICIAL=1",
+                             "GROUP=${params.GROUP}",
+                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_URL=${params.MANIFEST_URL}",
+                             "BOARD=${params.BOARD}",
+                             "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                             "SIGNING_USER=${params.SIGNING_USER}",
+                             "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                        sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
 
@@ -69,13 +123,13 @@ sudo rm -rf gce.properties src tmp
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
 
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  ./bin/cork enter --experimental -- "${script}" "$@"
-}
-
 enter() {
   ./bin/cork enter --experimental -- "$@"
+}
+
+script() {
+  local script="/mnt/host/source/src/scripts/${1}"; shift
+  enter "${script}" "$@"
 }
 
 source .repo/manifests/version.txt
@@ -93,25 +147,28 @@ grub=coreos_production_image.grub
 shim=coreos_production_image.shim
 [[ ${BOARD} == amd64-usr ]] || shim=
 
-DOWNLOAD=gs://builds.release.core-os.net  # /signed, /unsigned
-UPLOAD="gs://builds.release.core-os.net/${GROUP}"
+[ -s verify.gpg.pub ] && verify_key=--verify-key=verify.gpg.pub || verify_key=
 
 mkdir -p src tmp
-./bin/cork download-image --root="${DOWNLOAD}/unsigned/boards/${BOARD}/${COREOS_VERSION}" \
-                          --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+./bin/cork download-image --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
+                          --json-key="${GS_DEVEL_CREDS}" \
                           --cache-dir=./src \
-                          --platform=qemu
+                          --platform=qemu \
+                          --verify=true $verify_key
 img=src/coreos_production_image.bin
 [[ "${img}.bz2" -nt "${img}" ]] && enter lbunzip2 -k -f "/mnt/host/source/${img}.bz2"
 
-enter gsutil cp \
-    ${kernel:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel"} \
-    ${kernel:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel.sig"} \
-    ${grub:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub"} \
-    ${grub:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub.sig"} \
-    ${shim:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim"} \
-    ${shim:+"${DOWNLOAD}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim.sig"} \
-    /mnt/host/source/src
+enter env "GOOGLE_APPLICATION_CREDENTIALS=${GS_DEVEL_CREDS}" gsutil \
+    cp ${kernel:+
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel"
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$kernel.sig"
+    } ${grub:+
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub"
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$grub.sig"
+    } ${shim:+
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim"
+        "${DOWNLOAD_ROOT}/signed/boards/${BOARD}/${COREOS_VERSION}/$shim.sig"
+    } /mnt/host/source/src
 [[ -n "$kernel" ]] && gpg --verify "src/$kernel.sig"
 [[ -n "$grub" ]] && gpg --verify "src/$grub.sig"
 [[ -n "$shim" ]] && gpg --verify "src/$shim.sig"
@@ -124,11 +181,13 @@ script image_inject_bootchain --board=${BOARD} \
                               ${kernel:+--kernel_path=/mnt/host/source/src/$kernel} \
                               ${shim:+--shim_path=/mnt/host/source/src/$shim} \
                               --replace \
-                              --sign=buildbot@coreos.com \
-                              --sign_digests=buildbot@coreos.com \
-                              --upload_root=${UPLOAD} \
+                              --sign="${SIGNING_USER}" \
+                              --sign_digests="${SIGNING_USER}" \
+                              --upload_root="${UPLOAD_ROOT}" \
                               --upload
 '''  /* Editor quote safety: ' */
+                    }
+                }
             }
         }
     }
@@ -137,11 +196,19 @@ script image_inject_bootchain --board=${BOARD} \
 stage('Downstream') {
     build job: 'vm-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
-        string(name: 'GROUP', value: params.GROUP),
-        string(name: 'COREOS_OFFICIAL', '1'),
+        string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+        string(name: 'COREOS_OFFICIAL', value: '1'),
+        string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+        string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+        string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
+        string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+        string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+        string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+        text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
     ]
 }

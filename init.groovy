@@ -19,6 +19,8 @@ final List<String> REQUIRED_PLUGINS = [
     "cloudbees-folder",
     "copyartifact",
     "git",
+    "ssh-agent",
+    "tap",
     "workflow-aggregator",
 ]
 if (Jenkins.instance.pluginManager.plugins.collect {

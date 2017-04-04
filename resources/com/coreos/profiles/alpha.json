@@ -1,0 +1,9 @@
+/*
+ * This profile is used when building alpha releases.
+ */
+{
+    "PARENT": "developer",
+    "GROUP": "alpha",
+    "GS_RELEASE_DOWNLOAD_ROOT": "https://alpha.release.core-os.net",
+    "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/alpha",
+}

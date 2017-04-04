@@ -4,6 +4,9 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        choice(name: 'BOARD',
+               choices: "amd64-usr\narm64-usr",
+               description: 'Target board to build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'MANIFEST_REF',
@@ -56,7 +59,7 @@ node('amd64 && kvm') {
                  credentialsId: params.DOWNLOAD_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
-                withEnv(["BOARD=amd64-usr",
+                withEnv(["BOARD=${params.BOARD}",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_REF=${params.MANIFEST_REF}",
@@ -86,7 +89,7 @@ mkdir -p tmp
 bin/cork download-image \
     --cache-dir=tmp \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --platform=qemu \
+    --platform=qemu_uefi \
     --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
     --verify=true $verify_key
 enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
@@ -100,14 +103,9 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --board="${BOARD}" \
     --parallel=2 \
     --platform=qemu \
-    --qemu-bios=bios-256k.bin \
+    --qemu-bios=/mnt/host/source/tmp/coreos_production_qemu_uefi_efi_code.fd \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
     --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
-
-if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
-  enter gsutil cp "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/version.txt" \
-                  "${DOWNLOAD_ROOT}/boards/${BOARD}/current-master/version.txt"
-fi
 '''  /* Editor quote safety: ' */
                 }
             }
