@@ -58,10 +58,10 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
-        text(name: 'SIGNING_VERIFY',
+        text(name: 'VERIFY_KEYRING',
              defaultValue: '',
-             description: '''Public key to verify signed files, or blank to \
-use the built-in buildbot public key'''),
+             description: '''ASCII-armored keyring containing the public keys \
+used to verify signed files and Git tags'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -76,7 +76,7 @@ node('coreos && amd64 && sudo') {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+            writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
             sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                      ignoreMissing: true) {
@@ -99,9 +99,17 @@ node('coreos && amd64 && sudo') {
                         sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
-[[ -n "${MANIFEST_REF#refs/tags/}" ]]
+tag=${MANIFEST_REF#refs/tags/}
+[[ -n "${tag}" ]]
 
-./bin/cork update --create --downgrade-replace --verify --verbose \
+# set up GPG for verifying tags
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import verify.asc
+
+./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}" \
@@ -113,9 +121,9 @@ mkdir -p .cache/ccache
 
 enter() {
   sudo ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" chroot/etc/portage/gangue.json
-  [ -s verify.gpg.pub ] &&
-  sudo ln -f verify.gpg.pub chroot/etc/portage/gangue.gpg.pub &&
-  verify_key=--verify-key=/etc/portage/gangue.gpg.pub
+  [ -s verify.asc ] &&
+  sudo ln -f verify.asc chroot/etc/portage/gangue.asc &&
+  verify_key=--verify-key=/etc/portage/gangue.asc || verify_key=
   trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
   ./bin/cork enter --experimental -- env \
     CCACHE_DIR=/mnt/host/source/.cache/ccache \
@@ -139,10 +147,6 @@ source .repo/manifests/version.txt
 export COREOS_BUILD_ID
 
 # Set up GPG for signing images
-export GNUPGHOME="${PWD}/.gnupg"
-rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
-mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
 # figure out if ccache is doing us any good in this scheme
@@ -192,7 +196,7 @@ stage('Downstream') {
         string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
         string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
         string(name: 'SIGNING_USER', value: params.SIGNING_USER),
-        text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
+        text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
     ]
 }

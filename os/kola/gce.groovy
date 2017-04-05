@@ -24,6 +24,10 @@ download release storage files, create compute images, and run instances''',
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
+        text(name: 'VERIFY_KEYRING',
+             defaultValue: '',
+             description: '''ASCII-armored keyring containing the public keys \
+used to verify signed files and Git tags'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -40,6 +44,8 @@ node('amd64') {
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
+        writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
+
         sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                  ignoreMissing: true) {
             withCredentials([
@@ -53,10 +59,18 @@ node('amd64') {
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
+tag=${MANIFEST_REF#refs/tags/}
 sudo rm -rf *.tap manifests _kola_temp*
 
-short_ref="${MANIFEST_REF#refs/tags/}"
-git clone --depth 1 --branch "${short_ref}" "${MANIFEST_URL}" manifests
+# set up GPG for verifying tags
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import verify.asc
+
+git clone --depth=1 --branch="${tag}" "${MANIFEST_URL}" manifests
+git -C manifests tag -v "${tag}"
 source manifests/version.txt
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
