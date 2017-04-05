@@ -27,10 +27,10 @@ Google Storage URL, requires read permission''',
         string(name: 'DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
-        text(name: 'SIGNING_VERIFY',
+        text(name: 'VERIFY_KEYRING',
              defaultValue: '',
-             description: '''Public key to verify signed files, or blank to \
-use the built-in buildbot public key'''),
+             description: '''ASCII-armored keyring containing the public keys \
+used to verify signed files and Git tags'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -47,7 +47,7 @@ node('amd64 && kvm') {
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+        writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
         sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                  ignoreMissing: true) {
@@ -80,7 +80,7 @@ script() {
                   --manifest-name "${MANIFEST_NAME}"
 source .repo/manifests/version.txt
 
-[ -s verify.gpg.pub ] && verify_key=--verify-key=verify.gpg.pub || verify_key=
+[ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
 mkdir -p tmp
 bin/cork download-image \

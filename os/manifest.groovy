@@ -59,6 +59,7 @@ if (!profile.BUILDS_PUSH_URL)
     throw new Exception('A build profile was not loaded')
 
 def dprops = [:]  /* Store properties read from an artifact later.  */
+def keyring = ''
 
 node('coreos && amd64 && sudo') {
     stage('SCM') {
@@ -80,6 +81,20 @@ node('coreos && amd64 && sudo') {
                          allowUpstreamDependencies: true,
                          fallbackToLastSuccessful: true,
                          upstreamFilterStrategy: 'UseGlobalSetting']])
+
+        if (profile.VERIFY_KEYRING.startsWith("artifact:")) {
+            ArrayList<String> keyringSpec = profile.VERIFY_KEYRING.split(':')
+            step([$class: 'CopyArtifact',
+                  fingerprintArtifacts: true,
+                  projectName: keyringSpec[1],
+                  selector: [$class: 'TriggeredBuildSelector',
+                             allowUpstreamDependencies: true,
+                             fallbackToLastSuccessful: true,
+                             upstreamFilterStrategy: 'UseGlobalSetting']])
+            keyring = readFile(keyringSpec[2] ?: 'keyring.asc')
+        } else {
+            keyring = profile.VERIFY_KEYRING
+        }
 
         sshagent([profile.BUILDS_PUSH_CREDS]) {
             withCredentials([
@@ -239,7 +254,7 @@ stage('Downstream') {
                 string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
                 string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
-                string(name: 'SIGNING_VERIFY', value: profile.SIGNING_VERIFY),
+                string(name: 'VERIFY_KEYRING', value: keyring),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }

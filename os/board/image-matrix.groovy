@@ -58,10 +58,10 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
-        text(name: 'SIGNING_VERIFY',
+        text(name: 'VERIFY_KEYRING',
              defaultValue: '',
-             description: '''Public key to verify signed files, or blank to \
-use the built-in buildbot public key'''),
+             description: '''ASCII-armored keyring containing the public keys \
+used to verify signed files and Git tags'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -84,7 +84,7 @@ node('coreos && amd64 && sudo') {
                   projectName: '/mantle/master-builder',
                   selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            writeFile file: 'verify.gpg.pub', text: params.SIGNING_VERIFY ?: ''
+            writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
             sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                      ignoreMissing: true) {
@@ -123,9 +123,9 @@ sudo rm -rf src/build
 
 enter() {
   sudo ln -f "${GS_DEVEL_CREDS}" chroot/etc/portage/gangue.json
-  [ -s verify.gpg.pub ] &&
-  sudo ln -f verify.gpg.pub chroot/etc/portage/gangue.gpg.pub &&
-  verify_key=--verify-key=/etc/portage/gangue.gpg.pub
+  [ -s verify.asc ] &&
+  sudo ln -f verify.asc chroot/etc/portage/gangue.asc &&
+  verify_key=--verify-key=/etc/portage/gangue.asc || verify_key=
   trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
   ./bin/cork enter --experimental -- env \
     COREOS_DEV_BUILDS="${DOWNLOAD_ROOT}" \
@@ -205,7 +205,7 @@ stage('Downstream') {
                     string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
                     string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
-                    text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
+                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
             else
@@ -223,7 +223,7 @@ stage('Downstream') {
                     string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
                     string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
-                    text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
+                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
         },
@@ -236,7 +236,7 @@ stage('Downstream') {
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                     string(name: 'DOWNLOAD_CREDS', value: UPLOAD_CREDS),
                     string(name: 'DOWNLOAD_ROOT', value: UPLOAD_ROOT),
-                    text(name: 'SIGNING_VERIFY', value: params.SIGNING_VERIFY),
+                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
         }

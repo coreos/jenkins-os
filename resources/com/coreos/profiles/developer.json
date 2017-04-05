@@ -55,12 +55,26 @@
      * All of the files resulting from the build (OS images, firmware,
      * digests, etc.) are signed with the following GPG key.  The given
      * credentials ID should point to the private key file to be used,
-     * and the e-mail address identifies it to the GPG command.  The
-     * public key's entire armored contents should be pasted as the
-     * multi-line string value of SIGNING_VERIFY.  When left blank, the
-     * built-in buildbot public key is used for verification.
+     * and the e-mail address identifies it to the GPG command.
      */
     "SIGNING_CREDS": "buildbot-official.2E16137F.subkey.gpg",
     "SIGNING_USER": "buildbot@coreos.com",
-    "SIGNING_VERIFY": "",
+
+    /*
+     * A GPG keyring must be given to verify signed objects throughout
+     * the build.  It should provide the public keys of anyone that can
+     * sign release tags, as well as the public key of the user defined
+     * in SIGNING_USER above.  The value of VERIFY_KEYRING can be the
+     * entire ASCII-armored keyring from "gpg2 --armor --export" (since
+     * multi-line strings are supported here), or it can be given the
+     * following special format to read the keyring from an artifact:
+     *
+     *     artifact:JOB_NAME:FILE_NAME
+     *
+     * JOB_NAME should be the name of the job providing the artifact,
+     * including the full path with any parent folders.  FILE_NAME is
+     * the name of the artifact including any leading path component,
+     * which is taken from the last successful build.
+     */
+    "VERIFY_KEYRING": "artifact:/os/keyring:keyring.asc",
 }
