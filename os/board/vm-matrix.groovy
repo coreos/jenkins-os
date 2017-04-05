@@ -155,9 +155,17 @@ rm -f gce.properties
 sudo rm -rf tmp
 
 # build may not be started without a ref value
-[[ -n "${MANIFEST_REF#refs/tags/}" ]]
+tag=${MANIFEST_REF#refs/tags/}
+[[ -n "${tag}" ]]
 
-./bin/cork update --create --downgrade-replace --verify --verbose \
+# set up GPG for verifying tags
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import verify.asc
+
+./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
@@ -188,10 +196,6 @@ source .repo/manifests/version.txt
 export COREOS_BUILD_ID
 
 # Set up GPG for signing images
-export GNUPGHOME="${PWD}/.gnupg"
-rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
-mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
@@ -263,6 +267,7 @@ stage('Downstream') {
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                     string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
                     string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
         },

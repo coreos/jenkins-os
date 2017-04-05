@@ -66,6 +66,7 @@ node('amd64 && kvm') {
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
+tag=${MANIFEST_REF#refs/tags/}
 sudo rm -rf src/scripts/_kola_temp tmp _kola_temp*
 
 enter() {
@@ -77,7 +78,14 @@ script() {
   enter "${script}" "$@"
 }
 
-./bin/cork update --create --downgrade-replace --verify --verbose \
+# set up GPG for verifying tags
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import verify.asc
+
+./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"

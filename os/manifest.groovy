@@ -96,6 +96,8 @@ node('coreos && amd64 && sudo') {
             keyring = profile.VERIFY_KEYRING
         }
 
+        writeFile file: 'verify.asc', text: keyring
+
         sshagent([profile.BUILDS_PUSH_CREDS]) {
             withCredentials([
                 [$class: 'FileBinding',
@@ -121,6 +123,7 @@ COREOS_OFFICIAL=0
 
 finish() {
   local tag="$1"
+  git -C "${WORKSPACE}/manifest" tag -v "${tag}"
   git -C "${WORKSPACE}/manifest" push \
     "${BUILDS_PUSH_URL}" \
     "refs/tags/${tag}:refs/tags/${tag}"
@@ -131,6 +134,13 @@ MANIFEST_NAME = release.xml
 COREOS_OFFICIAL = ${COREOS_OFFICIAL:-0}
 EOF
 }
+
+# set up GPG for verifying tags
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import verify.asc
 
 # Branches are of the form remote-name/branch-name. Tags are just tag-name.
 # If we have a release tag use it, for branches we need to make a tag.
@@ -186,10 +196,6 @@ EOF
 git add version.txt
 
 # Set up GPG for signing tags
-export GNUPGHOME="${PWD}/.gnupg"
-sudo rm -rf "${GNUPGHOME}"
-trap "sudo rm -rf '${GNUPGHOME}'" EXIT
-mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
 GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
@@ -236,6 +242,7 @@ stage('Downstream') {
                 string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
                 string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                string(name: 'VERIFY_KEYRING', value: keyring),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },

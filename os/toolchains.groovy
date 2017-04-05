@@ -78,6 +78,8 @@ node('coreos && amd64 && sudo') {
                          fallbackToLastSuccessful: true,
                          upstreamFilterStrategy: 'UseGlobalSetting']])
 
+        writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
+
         sshagent(credentials: [params.BUILDS_CLONE_CREDS],
                  ignoreMissing: true) {
             withCredentials([
@@ -97,12 +99,20 @@ node('coreos && amd64 && sudo') {
                     sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
-[[ -n "${MANIFEST_REF#refs/tags/}" ]]
+tag=${MANIFEST_REF#refs/tags/}
+[[ -n "${tag}" ]]
 
 # hack because catalyst leaves things chowned as root
 [[ -d .cache/sdks ]] && sudo chown -R $USER .cache/sdks
 
-./bin/cork update --create --downgrade-replace --verify --verbose \
+# set up GPG for verifying tags
+export GNUPGHOME="${PWD}/.gnupg"
+rm -rf "${GNUPGHOME}"
+trap "rm -rf '${GNUPGHOME}'" EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import verify.asc
+
+./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
                   --manifest-branch "${MANIFEST_REF}" \
                   --manifest-name "${MANIFEST_NAME}"
@@ -115,10 +125,6 @@ source .repo/manifests/version.txt
 export COREOS_BUILD_ID
 
 # Set up GPG for signing images
-export GNUPGHOME="${PWD}/.gnupg"
-sudo rm -rf "${GNUPGHOME}"
-trap "sudo rm -rf '${GNUPGHOME}'" EXIT
-mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
 # Wipe all of catalyst
