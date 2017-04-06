@@ -169,6 +169,7 @@ stage('Downstream') {
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'RELEASE_BASE', value: ''),
                 string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                 text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),

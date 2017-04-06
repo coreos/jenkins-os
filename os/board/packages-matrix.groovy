@@ -49,6 +49,9 @@ Google Storage URL, requires write permission''',
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are uploaded'),
+        string(name: 'RELEASE_BASE',
+               defaultValue: '',
+               description: 'Use binary packages from this release version'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
@@ -94,6 +97,7 @@ node('coreos && amd64 && sudo') {
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
                              "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                             "RELEASE_BASE=${params.RELEASE_BASE}",
                              "SIGNING_USER=${params.SIGNING_USER}",
                              "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                         sh '''#!/bin/bash -ex
@@ -151,20 +155,20 @@ gpg --import "${GPG_SECRET_KEY_FILE}"
 # figure out if ccache is doing us any good in this scheme
 enter ccache --zero-stats
 
-script setup_board --board=${BOARD} \
-                   --skip_chroot_upgrade \
-                   --getbinpkgver=${COREOS_VERSION} \
-                   --toolchainpkgonly \
-                   --force
+script setup_board \
+    --board=${BOARD} \
+    --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
+    --skip_chroot_upgrade \
+    --force
 
-script build_packages --board=${BOARD} \
-                      --skip_chroot_upgrade \
-                      --getbinpkgver=${COREOS_VERSION} \
-                      --toolchainpkgonly \
-                      --sign="${SIGNING_USER}" \
-                      --sign_digests="${SIGNING_USER}" \
-                      --upload_root="${UPLOAD_ROOT}" \
-                      --upload
+script build_packages \
+    --board=${BOARD} \
+    --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
+    --skip_chroot_upgrade \
+    --sign="${SIGNING_USER}" \
+    --sign_digests="${SIGNING_USER}" \
+    --upload_root="${UPLOAD_ROOT}" \
+    --upload
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */

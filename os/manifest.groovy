@@ -13,6 +13,15 @@ properties([
 library resource named com/coreos/profiles/developer.json, for example.\n
 This value takes a colon-separated list of names to try, using the first one \
 that exists and can be parsed successfully.'''),
+        string(name: 'RELEASE_BASE',
+               defaultValue: '',
+               description: '''When non-empty, the release version number \
+given here will be used as a source of binary packages for this build.  It \
+completely skips building the toolchains and SDK, and the package build job \
+downloads binary packages from this version so only modified packages are \
+built from source.  Be aware that no SDK will produced by this build for \
+future releases to use.  This option should not be used unless a critical \
+security fix needs to be released quickly.'''),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
@@ -230,39 +239,70 @@ finish "${COREOS_BUILD_ID}"
 }
 
 stage('Downstream') {
-    parallel failFast: false,
-        sdk: {
-            build job: 'sdk', parameters: [
-                string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
-                string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
-                string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
-                string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
-                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
-                string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
-                string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
-                string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
-                string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
-                string(name: 'VERIFY_KEYRING', value: keyring),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
-        },
-        toolchains: {
-            build job: 'toolchains', parameters: [
-                string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
-                string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
-                string(name: 'GROUP', value: profile.GROUP),
-                string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
-                string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
-                string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
-                string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
-                string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
-                string(name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS),
-                string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: profile.GS_RELEASE_DOWNLOAD_ROOT),
-                string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
-                string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
-                string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
-                string(name: 'VERIFY_KEYRING', value: keyring),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
+    if (params.RELEASE_BASE) {
+        def genBuildPackages = { boardToBuild, minutesToWait ->
+            def board = boardToBuild    /* Create a closure with new variables.  */
+            def minutes = minutesToWait /* Cute curried closures have bad refs.  */
+            return {
+                sleep time: minutes, unit: 'MINUTES'
+                build job: 'board/packages-matrix', parameters: [
+                    string(name: 'BOARD', value: board),
+                    string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
+                    string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
+                    string(name: 'GROUP', value: profile.GROUP),
+                    string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
+                    string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
+                    string(name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS),
+                    string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: profile.GS_RELEASE_DOWNLOAD_ROOT),
+                    string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
+                    string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
+                    string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
+                    string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
+                    string(name: 'RELEASE_BASE', value: params.RELEASE_BASE),
+                    string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                    string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                    text(name: 'VERIFY_KEYRING', value: keyring),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+            }
         }
+        parallel failFast: false,
+            'board-packages-matrix-amd64-usr': genBuildPackages('amd64-usr', 0),
+            'board-packages-matrix-arm64-usr': genBuildPackages('arm64-usr', 1)
+    } else
+        parallel failFast: false,
+            sdk: {
+                build job: 'sdk', parameters: [
+                    string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
+                    string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
+                    string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
+                    string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
+                    string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
+                    string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
+                    string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
+                    string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                    string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                    text(name: 'VERIFY_KEYRING', value: keyring),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+            },
+            toolchains: {
+                build job: 'toolchains', parameters: [
+                    string(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
+                    string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
+                    string(name: 'GROUP', value: profile.GROUP),
+                    string(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
+                    string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
+                    string(name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS),
+                    string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: profile.GS_RELEASE_DOWNLOAD_ROOT),
+                    string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
+                    string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
+                    string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
+                    string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
+                    string(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                    string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                    text(name: 'VERIFY_KEYRING', value: keyring),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+            }
 }
