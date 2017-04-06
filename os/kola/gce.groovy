@@ -6,8 +6,8 @@ properties([
     parameters([
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_REF',
-               defaultValue: 'refs/tags/'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
          defaultValue: '',
@@ -55,11 +55,10 @@ node('amd64') {
             ]) {
                 withEnv(["BOARD=amd64-usr",
                          "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}",
-                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-tag=${MANIFEST_REF#refs/tags/}
 sudo rm -rf *.tap manifests _kola_temp*
 
 # set up GPG for verifying tags
@@ -69,8 +68,8 @@ trap "rm -rf '${GNUPGHOME}'" EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-git clone --depth=1 --branch="${tag}" "${MANIFEST_URL}" manifests
-git -C manifests tag -v "${tag}"
+git clone --depth=1 --branch="${MANIFEST_TAG}" "${MANIFEST_URL}" manifests
+git -C manifests tag -v "${MANIFEST_TAG}"
 source manifests/version.txt
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"

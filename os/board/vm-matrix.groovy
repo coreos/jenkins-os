@@ -9,8 +9,8 @@ properties([
                description: 'Target board to build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_REF',
-               defaultValue: 'refs/tags/'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
@@ -141,7 +141,7 @@ for (format in format_list) {
                 ]) {
                     withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                              "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_TAG=${params.MANIFEST_TAG}",
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
                              "FORMAT=${FORMAT}",
@@ -155,8 +155,7 @@ rm -f gce.properties
 sudo rm -rf tmp
 
 # build may not be started without a ref value
-tag=${MANIFEST_REF#refs/tags/}
-[[ -n "${tag}" ]]
+[[ -n "${MANIFEST_TAG}" ]]
 
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
@@ -167,7 +166,7 @@ gpg --import verify.asc
 
 ./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "${MANIFEST_REF}" \
+                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
                   --manifest-name "${MANIFEST_NAME}"
 
 enter() {
@@ -263,7 +262,7 @@ stage('Downstream') {
             if (params.BOARD == 'amd64-usr')
                 build job: '../kola/gce', propagate: false, parameters: [
                     string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                    string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                     string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
                     string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
@@ -276,7 +275,7 @@ stage('Downstream') {
                 string(name: 'BOARD', value: params.BOARD),
                 string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                 string(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
                 string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),

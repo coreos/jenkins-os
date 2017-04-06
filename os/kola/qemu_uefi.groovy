@@ -9,8 +9,8 @@ properties([
                description: 'Target board to build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_REF',
-               defaultValue: 'refs/tags/'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
@@ -62,11 +62,10 @@ node('amd64 && kvm') {
                 withEnv(["BOARD=${params.BOARD}",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-tag=${MANIFEST_REF#refs/tags/}
 sudo rm -rf src/scripts/_kola_temp tmp _kola_temp*
 
 enter() {
@@ -87,7 +86,7 @@ gpg --import verify.asc
 
 ./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "${MANIFEST_REF}" \
+                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
                   --manifest-name "${MANIFEST_NAME}"
 source .repo/manifests/version.txt
 
