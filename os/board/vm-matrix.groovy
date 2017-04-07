@@ -40,6 +40,18 @@ GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
 Google Storage URL, requires write permission''',
          name: 'GS_RELEASE_CREDS',
          required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
+         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
+         description: '''Credentials given here must have all permissions required by ore upload and kola run --platform=aws''',
+         required: true,
+         name: 'AWS_DEV_CREDS'],
+        string(name: 'AWS_DEV_BUCKET',
+               defaultValue: "s3://coreos-dev-ami-import-us-west-2",
+               description: 'AWS bucket to upload images to during AMI-creation'),
+        string(name: 'AWS_REGION',
+               defaultValue: 'us-west-2',
+               description: 'AWS region to use for AMIs and testing'),
         string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are downloaded'),
@@ -282,5 +294,21 @@ stage('Downstream') {
                 text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
+        },
+        'aws_amis': {
+            if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL != '1') {
+                build job: 'unofficial-ami', parameters: [
+                    string(name: 'AWS_DEV_CREDS', value: params.AWS_DEV_CREDS),
+                    string(name: 'AWS_DEV_BUCKET', value: params.AWS_DEV_BUCKET),
+                    string(name: 'AWS_REGION', value: params.AWS_REGION),
+                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                    string(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
+                    string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+            } /* TODO(euank): else, pre-release an official ami to test */
         }
 }
