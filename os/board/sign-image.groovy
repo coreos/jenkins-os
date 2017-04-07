@@ -12,8 +12,8 @@ properties([
                description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_REF',
-               defaultValue: 'refs/tags/'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
@@ -67,7 +67,7 @@ used to verify signed files and Git tags'''),
 ])
 
 stage('Wait') {
-    def version = params.MANIFEST_REF?.startsWith('refs/tags/v') ? params.MANIFEST_REF.substring(11) : ''
+    def version = params.MANIFEST_TAG?.startsWith('v') ? params.MANIFEST_TAG.substring(1) : ''
     def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to continue.\n
 When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
 
@@ -105,7 +105,7 @@ node('coreos && amd64 && sudo') {
                     withEnv(["COREOS_OFFICIAL=1",
                              "GROUP=${params.GROUP}",
                              "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_TAG=${params.MANIFEST_TAG}",
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
                              "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
@@ -116,8 +116,7 @@ node('coreos && amd64 && sudo') {
 sudo rm -rf gce.properties src tmp
 
 # build may not be started without a ref value
-tag=${MANIFEST_REF#refs/tags/}
-[[ -n "${tag}" ]]
+[[ -n "${MANIFEST_TAG}" ]]
 
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
@@ -128,7 +127,7 @@ gpg --import verify.asc
 
 ./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "${MANIFEST_REF}" \
+                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
                   --manifest-name "${MANIFEST_NAME}"
 
 enter() {
@@ -205,7 +204,7 @@ stage('Downstream') {
         string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
         string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+        string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
         string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
         string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),

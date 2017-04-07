@@ -12,8 +12,8 @@ properties([
                description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_REF',
-               defaultValue: 'refs/tags/'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
@@ -92,15 +92,14 @@ node('coreos && amd64 && sudo') {
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                         "MANIFEST_REF=${params.MANIFEST_REF}",
+                         "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "SIGNING_USER=${params.SIGNING_USER}",
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
-tag=${MANIFEST_REF#refs/tags/}
-[[ -n "${tag}" ]]
+[[ -n "${MANIFEST_TAG}" ]]
 
 # hack because catalyst leaves things chowned as root
 [[ -d .cache/sdks ]] && sudo chown -R $USER .cache/sdks
@@ -114,7 +113,7 @@ gpg --import verify.asc
 
 ./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "${MANIFEST_REF}" \
+                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
                   --manifest-name "${MANIFEST_NAME}"
 
 enter() {
@@ -152,45 +151,33 @@ sudo rm -rf src/build/catalyst/builds
 }
 
 stage('Downstream') {
-    parallel failFast: false,
-        'board-packages-matrix-amd64-usr': {
+    def genBuildPackages = { boardToBuild, minutesToWait ->
+        def board = boardToBuild    /* Create a closure with new variables.  */
+        def minutes = minutesToWait /* Cute curried closures have bad refs.  */
+        return {
+            sleep time: minutes, unit: 'MINUTES'
             build job: 'board/packages-matrix', parameters: [
-                string(name: 'BOARD', value: 'amd64-usr'),
-                string(name: 'GROUP', value: params.GROUP),
+                string(name: 'BOARD', value: board),
                 string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
-                string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
-                string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
-                string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
-                string(name: 'SIGNING_USER', value: params.SIGNING_USER),
-                text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
-        },
-        'board-packages-matrix-arm64-usr': {
-            sleep time: 1, unit: 'MINUTES'
-            build job: 'board/packages-matrix', parameters: [
-                string(name: 'BOARD', value: 'arm64-usr'),
                 string(name: 'GROUP', value: params.GROUP),
-                string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                 string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
                 string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
                 string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
                 string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
                 string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                string(name: 'RELEASE_BASE', value: ''),
                 string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                 text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }
+    }
+    parallel failFast: false,
+        'board-packages-matrix-amd64-usr': genBuildPackages('amd64-usr', 0),
+        'board-packages-matrix-arm64-usr': genBuildPackages('arm64-usr', 1)
 }

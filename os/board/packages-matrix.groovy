@@ -12,8 +12,8 @@ properties([
                description: 'Which release group owns this build'),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_REF',
-               defaultValue: 'refs/tags/'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
         string(name: 'MANIFEST_NAME',
                defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
@@ -49,6 +49,9 @@ Google Storage URL, requires write permission''',
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are uploaded'),
+        string(name: 'RELEASE_BASE',
+               defaultValue: '',
+               description: 'Use binary packages from this release version'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'buildbot-official.2E16137F.subkey.gpg',
@@ -90,17 +93,17 @@ node('coreos && amd64 && sudo') {
                 ]) {
                     withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                              "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_REF=${params.MANIFEST_REF}",
+                             "MANIFEST_TAG=${params.MANIFEST_TAG}",
                              "MANIFEST_URL=${params.MANIFEST_URL}",
                              "BOARD=${params.BOARD}",
                              "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                             "RELEASE_BASE=${params.RELEASE_BASE}",
                              "SIGNING_USER=${params.SIGNING_USER}",
                              "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                         sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
-tag=${MANIFEST_REF#refs/tags/}
-[[ -n "${tag}" ]]
+[[ -n "${MANIFEST_TAG}" ]]
 
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
@@ -111,7 +114,7 @@ gpg --import verify.asc
 
 ./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
                   --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "${MANIFEST_REF}" \
+                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
                   --manifest-name "${MANIFEST_NAME}" \
                   -- --toolchain_boards=${BOARD}
 
@@ -152,20 +155,20 @@ gpg --import "${GPG_SECRET_KEY_FILE}"
 # figure out if ccache is doing us any good in this scheme
 enter ccache --zero-stats
 
-script setup_board --board=${BOARD} \
-                   --skip_chroot_upgrade \
-                   --getbinpkgver=${COREOS_VERSION} \
-                   --toolchainpkgonly \
-                   --force
+script setup_board \
+    --board=${BOARD} \
+    --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
+    --skip_chroot_upgrade \
+    --force
 
-script build_packages --board=${BOARD} \
-                      --skip_chroot_upgrade \
-                      --getbinpkgver=${COREOS_VERSION} \
-                      --toolchainpkgonly \
-                      --sign="${SIGNING_USER}" \
-                      --sign_digests="${SIGNING_USER}" \
-                      --upload_root="${UPLOAD_ROOT}" \
-                      --upload
+script build_packages \
+    --board=${BOARD} \
+    --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
+    --skip_chroot_upgrade \
+    --sign="${SIGNING_USER}" \
+    --sign_digests="${SIGNING_USER}" \
+    --upload_root="${UPLOAD_ROOT}" \
+    --upload
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */
@@ -187,7 +190,7 @@ stage('Downstream') {
         string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-        string(name: 'MANIFEST_REF', value: params.MANIFEST_REF),
+        string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
         string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
         string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
