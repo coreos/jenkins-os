@@ -261,12 +261,8 @@ stage('Downstream') {
         'kola-gce': {
             if (params.BOARD == 'amd64-usr')
                 build job: '../kola/gce', propagate: false, parameters: [
-                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                     string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
                     string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
         },

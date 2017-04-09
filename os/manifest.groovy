@@ -229,7 +229,8 @@ finish "${COREOS_BUILD_ID}"
     }
 
     stage('Post-build') {
-        archiveArtifacts 'manifest.properties,manifest/version.txt'
+        archiveArtifacts artifacts: 'manifest.properties,manifest/version.txt',
+                         fingerprint: true
 
         for (line in readFile('manifest.properties').trim().split("\n")) {
             def tokens = line.tokenize(" =")

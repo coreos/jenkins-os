@@ -4,16 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        string(name: 'MANIFEST_URL',
-               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_TAG',
-               defaultValue: ''),
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
-         defaultValue: '',
-         description: 'Credential ID for SSH Git clone URLs',
-         name: 'BUILDS_CLONE_CREDS',
-         required: false],
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
@@ -24,10 +14,6 @@ download release storage files, create compute images, and run instances''',
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
-        text(name: 'VERIFY_KEYRING',
-             defaultValue: '',
-             description: '''ASCII-armored keyring containing the public keys \
-used to verify signed files and Git tags'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -39,38 +25,33 @@ def rc = 0
 
 node('amd64') {
     stage('Build') {
+        sh 'sudo rm -rf *.tap version.txt _kola_temp*'
+
+        step([$class: 'CopyArtifact',
+              filter: 'manifest/version.txt',
+              fingerprintArtifacts: true,
+              flatten: true,
+              projectName: '../manifest',
+              selector: [$class: 'TriggeredBuildSelector',
+                         allowUpstreamDependencies: false,
+                         fallbackToLastSuccessful: false,
+                         upstreamFilterStrategy: 'UseNewest']])
+
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
-        writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
+        withCredentials([
+            [$class: 'FileBinding',
+             credentialsId: params.GS_RELEASE_CREDS,
+             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+        ]) {
+            withEnv(["BOARD=amd64-usr",
+                     "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
-                 ignoreMissing: true) {
-            withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: params.GS_RELEASE_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-            ]) {
-                withEnv(["BOARD=amd64-usr",
-                         "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}",
-                         "MANIFEST_TAG=${params.MANIFEST_TAG}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
-
-sudo rm -rf *.tap manifests _kola_temp*
-
-# set up GPG for verifying tags
-export GNUPGHOME="${PWD}/.gnupg"
-rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
-mkdir --mode=0700 "${GNUPGHOME}"
-gpg --import verify.asc
-
-git clone --depth=1 --branch="${MANIFEST_TAG}" "${MANIFEST_URL}" manifests
-git -C manifests tag -v "${MANIFEST_TAG}"
-source manifests/version.txt
+source version.txt
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
@@ -90,7 +71,6 @@ timeout --signal=SIGQUIT 30m bin/kola run \
     --platform=gce \
     --tapfile="${JOB_NAME##*/}.tap"
 '''  /* Editor quote safety: ' */
-                }
             }
         }
     }
