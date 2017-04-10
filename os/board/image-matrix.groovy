@@ -197,16 +197,16 @@ stage('Downstream') {
                 build job: 'sign-image', parameters: [
                     string(name: 'BOARD', value: params.BOARD),
                     string(name: 'GROUP', value: params.GROUP),
+                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+                    [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
+                    string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
+                    [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
+                    string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
+                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                    string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
-                    string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
-                    string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
-                    string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
-                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                    string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+                    [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: params.SIGNING_CREDS],
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
@@ -214,17 +214,17 @@ stage('Downstream') {
             else
                 build job: 'vm-matrix', parameters: [
                     string(name: 'BOARD', value: params.BOARD),
-                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-                    string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+                    [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
                     string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
+                    [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
+                    string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
+                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
-                    string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
-                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                    string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+                    [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: params.SIGNING_CREDS],
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
@@ -233,12 +233,12 @@ stage('Downstream') {
         'kola-qemu': {
             if (params.BOARD == 'amd64-usr')
                 build job: '../kola/qemu', parameters: [
-                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+                    [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: UPLOAD_CREDS],
+                    string(name: 'DOWNLOAD_ROOT', value: UPLOAD_ROOT),
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    string(name: 'DOWNLOAD_CREDS', value: UPLOAD_CREDS),
-                    string(name: 'DOWNLOAD_ROOT', value: UPLOAD_ROOT),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
