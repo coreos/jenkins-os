@@ -3,6 +3,10 @@
 String fingerprints = params?.FINGERPRINTS ?: ''
 String import_keyring = params?.IMPORT_KEYRING ?: ''
 
+/* On the first initializing run, fetch the buildbot key by default.  */
+if (params?.FINGERPRINTS == null)
+    fingerprints = '04127D0BFABEC8871FFB2CCE50E0885593D2DCB4 # CoreOS buildbot'
+
 node('coreos') {
     stage('Build') {
         writeFile file: 'fingerprints.txt', text: fingerprints.trim()
