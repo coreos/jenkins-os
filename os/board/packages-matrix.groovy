@@ -72,35 +72,34 @@ used to verify signed files and Git tags'''),
 ])
 
 node('coreos && amd64 && sudo') {
-    ws("${env.WORKSPACE}/${params.BOARD}") {
-        stage('Build') {
-            step([$class: 'CopyArtifact',
-                  fingerprintArtifacts: true,
-                  projectName: '/mantle/master-builder',
-                  selector: [$class: 'StatusBuildSelector', stable: false]])
+    stage('Build') {
+        step([$class: 'CopyArtifact',
+              fingerprintArtifacts: true,
+              projectName: '/mantle/master-builder',
+              selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
+        writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
-            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
-                     ignoreMissing: true) {
-                withCredentials([
-                    [$class: 'FileBinding',
-                     credentialsId: params.SIGNING_CREDS,
-                     variable: 'GPG_SECRET_KEY_FILE'],
-                    [$class: 'FileBinding',
-                     credentialsId: params.GS_DEVEL_CREDS,
-                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-                ]) {
-                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
-                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_TAG=${params.MANIFEST_TAG}",
-                             "MANIFEST_URL=${params.MANIFEST_URL}",
-                             "BOARD=${params.BOARD}",
-                             "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
-                             "RELEASE_BASE=${params.RELEASE_BASE}",
-                             "SIGNING_USER=${params.SIGNING_USER}",
-                             "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
-                        sh '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.SIGNING_CREDS,
+                 variable: 'GPG_SECRET_KEY_FILE'],
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_DEVEL_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_TAG=${params.MANIFEST_TAG}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "BOARD=${params.BOARD}",
+                         "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                         "RELEASE_BASE=${params.RELEASE_BASE}",
+                         "SIGNING_USER=${params.SIGNING_USER}",
+                         "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
+                    sh '''#!/bin/bash -ex
 
 # build may not be started without a ref value
 [[ -n "${MANIFEST_TAG}" ]]
@@ -172,14 +171,13 @@ script build_packages \
 
 enter ccache --show-stats
 '''  /* Editor quote safety: ' */
-                    }
                 }
             }
         }
+    }
 
-        stage('Post-build') {
-            fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
-        }
+    stage('Post-build') {
+        fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
     }
 }
 
@@ -187,17 +185,17 @@ stage('Downstream') {
     build job: 'image-matrix', parameters: [
         string(name: 'BOARD', value: params.BOARD),
         string(name: 'GROUP', value: params.GROUP),
-        string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+        [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+        [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
+        string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
+        [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
+        string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
         string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
         string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
         string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-        string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
-        string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
-        string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
-        string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
-        string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-        string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+        [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: params.SIGNING_CREDS],
         string(name: 'SIGNING_USER', value: params.SIGNING_USER),
         text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)

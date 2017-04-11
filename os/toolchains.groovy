@@ -158,19 +158,19 @@ stage('Downstream') {
             sleep time: minutes, unit: 'MINUTES'
             build job: 'board/packages-matrix', parameters: [
                 string(name: 'BOARD', value: board),
-                string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 string(name: 'GROUP', value: params.GROUP),
-                string(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+                [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
                 string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
-                string(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+                [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
                 string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
                 string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
                 string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                 string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                 string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                 string(name: 'RELEASE_BASE', value: ''),
-                string(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+                [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: params.SIGNING_CREDS],
                 string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                 text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
