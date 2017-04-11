@@ -80,38 +80,37 @@ When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed wit
 }
 
 node('coreos && amd64 && sudo') {
-    ws("${env.WORKSPACE}/${params.BOARD}") {
-        stage('Amend') {
-            step([$class: 'CopyArtifact',
-                  fingerprintArtifacts: true,
-                  projectName: '/mantle/master-builder',
-                  selector: [$class: 'StatusBuildSelector', stable: false]])
+    stage('Amend') {
+        step([$class: 'CopyArtifact',
+              fingerprintArtifacts: true,
+              projectName: '/mantle/master-builder',
+              selector: [$class: 'StatusBuildSelector', stable: false]])
 
-            writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
+        writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
-            sshagent(credentials: [params.BUILDS_CLONE_CREDS],
-                     ignoreMissing: true) {
-                withCredentials([
-                    [$class: 'FileBinding',
-                     credentialsId: params.SIGNING_CREDS,
-                     variable: 'GPG_SECRET_KEY_FILE'],
-                    [$class: 'FileBinding',
-                     credentialsId: params.GS_DEVEL_CREDS,
-                     variable: 'GS_DEVEL_CREDS'],
-                    [$class: 'FileBinding',
-                     credentialsId: params.GS_RELEASE_CREDS,
-                     variable: 'GOOGLE_APPLICATION_CREDENTIALS']
-                ]) {
-                    withEnv(["COREOS_OFFICIAL=1",
-                             "GROUP=${params.GROUP}",
-                             "MANIFEST_NAME=${params.MANIFEST_NAME}",
-                             "MANIFEST_TAG=${params.MANIFEST_TAG}",
-                             "MANIFEST_URL=${params.MANIFEST_URL}",
-                             "BOARD=${params.BOARD}",
-                             "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
-                             "SIGNING_USER=${params.SIGNING_USER}",
-                             "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
-                        sh '''#!/bin/bash -ex
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
+                 ignoreMissing: true) {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: params.SIGNING_CREDS,
+                 variable: 'GPG_SECRET_KEY_FILE'],
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_DEVEL_CREDS,
+                 variable: 'GS_DEVEL_CREDS'],
+                [$class: 'FileBinding',
+                 credentialsId: params.GS_RELEASE_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["COREOS_OFFICIAL=1",
+                         "GROUP=${params.GROUP}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                         "MANIFEST_TAG=${params.MANIFEST_TAG}",
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "BOARD=${params.BOARD}",
+                         "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
+                         "SIGNING_USER=${params.SIGNING_USER}",
+                         "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
+                    sh '''#!/bin/bash -ex
 
 sudo rm -rf gce.properties src tmp
 
@@ -189,7 +188,6 @@ script image_inject_bootchain --board=${BOARD} \
                               --upload_root="${UPLOAD_ROOT}" \
                               --upload
 '''  /* Editor quote safety: ' */
-                    }
                 }
             }
         }
