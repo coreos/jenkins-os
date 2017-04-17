@@ -67,14 +67,25 @@ used to verify signed files and Git tags'''),
 
 /* The VM format list mapping is keyed on ${BOARD}.  */
 def format_map = ['amd64-usr': '''
-qemu
-qemu_uefi
 ami
 ami_vmdk
-pxe
+azure
+gce
 iso
+pxe
+qemu
+qemu_uefi
+brightbox
+cloudsigma
+cloudstack
+cloudstack_vhd
+digitalocean
+exoscale
+hyperv
+niftycloud
 openstack
 openstack_mini
+packet
 parallels
 rackspace
 rackspace_onmetal
@@ -84,28 +95,17 @@ vagrant_parallels
 vagrant_vmware_fusion
 virtualbox
 vmware
+vmware_insecure
 vmware_ova
 vmware_raw
-vmware_insecure
 xen
-gce
-brightbox
-cloudstack
-cloudstack_vhd
-digitalocean
-exoscale
-azure
-hyperv
-niftycloud
-cloudsigma
-packet
 ''',
                   'arm64-usr': '''
-qemu_uefi
-pxe
 openstack
 openstack_mini
 packet
+pxe
+qemu_uefi
 ''']
 
 /* Construct a matrix of build variation closures.  */
