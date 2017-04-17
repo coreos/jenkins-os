@@ -1,0 +1,14 @@
+<j:jelly xmlns:d="jelly:define" xmlns:f="/lib/form" xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:s="jelly:stapler" xmlns:t="/lib/hudson">
+    <li style="list-style-type:none">
+        <span style="${build.run == it.build ? 'background-color:#bbb;' : ''}vertical-align:middle">
+            <t:buildLink job="${build.run.parent}" jobName="${build.run.parent.fullName}" number="${build.run.number}" /> ${build.params.MANIFEST_REF ?: ''} ${build.params.BOARD ?: ''}
+        </span>
+        <j:if test="${build.downstreams.size() > 0}">
+            <ul>
+                <j:forEach items="${build.downstreams}" var="build">
+                    <s:include page="item.jelly" />
+                </j:forEach>
+            </ul>
+        </j:if>
+    </li>
+</j:jelly>

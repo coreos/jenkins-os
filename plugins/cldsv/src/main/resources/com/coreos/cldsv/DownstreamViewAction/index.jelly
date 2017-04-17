@@ -1,0 +1,21 @@
+<j:jelly xmlns:d="jelly:define" xmlns:f="/lib/form" xmlns:j="jelly:core" xmlns:l="/lib/layout" xmlns:s="jelly:stapler" xmlns:t="/lib/hudson">
+    <l:layout title="Container Linux Downstream View" norefresh="false">
+        <l:side-panel>
+            <l:tasks>
+                <l:task href="${rootURL}/${it.build.url}" icon="up" title="Back to Build" />
+            </l:tasks>
+        </l:side-panel>
+        <l:main-panel>
+            <j:set var="origin" value="${it.buildOrigin}" />
+            <j:if test="${origin == null}">
+                <h2>Could not determine this build structure</h2>
+            </j:if>
+            <j:if test="${origin != null}">
+                <j:set var="build" value="${origin}" />
+                <ul>
+                    <s:include page="item.jelly" />
+                </ul>
+            </j:if>
+        </l:main-panel>
+    </l:layout>
+</j:jelly>

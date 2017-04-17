@@ -1,0 +1,16 @@
+plugins {
+    id 'org.jenkins-ci.jpi' version '0.22.0'  // Oldest version tested
+}
+
+description = 'Render every triggered job run for a Container Linux build'
+group = 'org.jenkins-ci.plugins'
+version = '0.0.1-SNAPSHOT'  // Consider this wildly unstable
+
+jenkinsPlugin {
+    coreVersion = '2.46'  // Oldest version tested
+    displayName = 'Container Linux Downstream View'
+    fileExtension = 'jpi'
+    gitHubUrl = 'https://github.com/coreos/jenkins-os'
+    shortName = 'coreos-cldsv'
+    url = 'https://github.com/coreos/jenkins-os/tree/master/plugins/cldsv'
+}
