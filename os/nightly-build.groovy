@@ -9,7 +9,7 @@ stage('Downstream') {
 
     if (run.result == 'SUCCESS')
         slackSend color: 'good',
-                  message: ":partyparrot: The nightly OS build succeeded!\n${BUILD_URL}"
+                  message: ":partyparrot: The nightly OS build succeeded!\n${BUILD_URL}cldsv"
     else
         slackSend color: 'danger',
                   message: "${buildTree run}"
