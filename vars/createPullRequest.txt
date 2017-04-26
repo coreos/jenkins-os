@@ -1,0 +1,18 @@
+The createPullRequest function creates a new pull request on GitHub.  It will
+perform the entire session of API operations, so it is not necessary to manage
+connection handles, etc.
+
+Parameters must be given as named arguments, from the following possibilities:
+
+  - username (required): The GitHub user that will perform the action
+  - password (required): The GitHub user's password for authentication
+  - upstreamProject (required): The project that will receive the pull request,
+    given in the form "<owner>/<name>"
+  - upstreamBranch (optional): The branch in upstreamProject being requested
+    for merging, defaults to "master"
+  - sourceOwner (optional): The GitHub user or organization that owns the fork
+    of upstreamProject, defaults to the given username
+  - sourceBranch (optional): The branch in sourceOwner's forked repository that
+    is requesting to merge into upstreamBranch, defaults to "master"
+  - title (required): The title of the pull request
+  - message (optional): The message body of the pull request (in Markdown)
