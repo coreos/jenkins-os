@@ -12,7 +12,8 @@ properties([
 ])
 
 /* The following might want to be configured.  */
-def loginCreds = 'bf35c69b-a706-43be-8d59-fed1a1055b7e'
+def username = 'coreosbot'
+def loginCreds = '2b710187-52cc-4e5b-a020-9cae59519baa'
 def sshCreds = 'f40af2c1-0f07-41c4-9aad-5014dd213a3e'
 def gsCreds = '9b77e4af-a9cb-47c8-8952-f375f0b48596'
 
@@ -29,12 +30,6 @@ def channel = params.CHANNEL
 def version = params.VERSION
 def branch = "build-${version.split(/\./)[0]}"
 
-def username = 'coreosbot'
-withCredentials([usernamePassword(credentialsId: loginCreds,
-                                  passwordVariable: 'password',
-                                  usernameVariable: 'nameFromCreds')]) {
-    username = nameFromCreds  // Extract the actual user name from credentials.
-}
 def forkProject = "${username}/${docsProject.split('/')[-1]}"
 
 def docsUrl = "ssh://git@github.com/${docsProject}.git"
@@ -103,12 +98,10 @@ git -C coreos-pages push -f ${forkUrl} ${branch}
     }
 
     stage('PR') {
-        withCredentials([usernamePassword(credentialsId: loginCreds,
-                                          passwordVariable: 'password',
-                                          usernameVariable: 'username')]) {
-            createPullRequest(username: username,
-                              password: password,
+        withCredentials([string(credentialsId: loginCreds, variable: 'pat')]) {
+            createPullRequest(token: pat,
                               upstreamProject: docsProject,
+                              sourceOwner: username,
                               sourceBranch: branch,
                               title: "os: sync ${version}",
                               message: "From: ${env.BUILD_URL}")
