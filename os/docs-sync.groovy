@@ -44,6 +44,9 @@ node('amd64 && docker') {
 rm -fr coreos-pages pages
 git clone ${docsUrl} coreos-pages
 git clone --depth=1 ${pagesUrl} pages
+git -C coreos-pages config user.name '${gitAuthor}'
+git -C coreos-pages config user.email '${gitEmail}'
+git -C coreos-pages checkout -B ${branch}
 """  /* Editor quote safety: " */
         }
 
@@ -63,6 +66,40 @@ EOF
 '''  /* Editor quote safety: ' */
         }
 
+        stage('Prune') {
+            sh """#!/bin/bash -ex
+shopt -s nullglob
+declare -A releases
+releases[${version}]=${channel}
+""" + '''
+# Use the release buckets to determine the channel for previous releases.
+for release_dir in coreos-pages/_os/[0-9]*.*[0-9]
+do
+        release=${release_dir##*/}
+        releases[${release}]=
+        for channel in stable beta alpha
+        do
+                board_url="http://${channel}.release.core-os.net/amd64-usr"
+                curl -fIs "${board_url}/${release}/version.txt" &&
+                releases[${release}]=${channel} &&
+                break
+        done
+done
+
+# Keep five releases from each channel (and drop all releases with no channel).
+declare -A kept
+while read release
+do
+        release_dir="coreos-pages/_os/${release}"
+        [ -z "${releases[${release}]}" ] && rm -fr "${release_dir}" && continue
+        [ "${#kept[${releases[${release}]}]}" -lt 5 ] &&
+        kept[${releases[${release}]}]+=. ||
+        rm -fr "${release_dir}"
+done < <(sort -rV <(IFS=$'\n' ; echo "${!releases[*]}"))
+git -C coreos-pages commit -am 'os: prune old releases' || :
+'''  /* Editor quote safety: ' */
+        }
+
         stage('Sync') {
             withCredentials([
                 [$class: 'FileBinding',
@@ -70,10 +107,6 @@ EOF
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 sh """#!/bin/bash -ex
-git -C coreos-pages config user.name '${gitAuthor}'
-git -C coreos-pages config user.email '${gitEmail}'
-git -C coreos-pages checkout -B ${branch}
-
 cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json
 docker run --rm -i \
     -v "\$PWD:/workspace" \
