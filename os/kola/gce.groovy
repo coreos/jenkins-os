@@ -74,7 +74,7 @@ source manifests/version.txt
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
-bin/ore create-image \
+bin/ore gcloud create-image \
     --board="${BOARD}" \
     --family="${NAME}" \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
