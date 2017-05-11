@@ -54,6 +54,21 @@ Complete any initial site-specific configuration steps, such as user authenticat
 
 At least one worker should be configured. The recommended configuration for workers is using the `ssh-slaves` plugin to connect to Container Linux on a bare metal AMD64 system with KVM support, with a `jenkins` user in the `docker` and `sudo` groups. The working directory must be on a read/write partition, e.g. at `/opt/jenkins`.
 
+The following Config Transpiler configuration is a good starting point:
+
+```yaml
+storage:
+  files:
+  - filesystem: root
+    path: /etc/binfmt.d/qemu-aarch64.conf
+    mode: 420
+    contents:
+      inline: |-
+       :qemu-aarch64:M::\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7:\xff\xff\xff\xff\xff\xff\xff\x00\xff\xff\xff\xff\xff\xff\xff\xff\xfe\xff\xff:/usr/bin/qemu-aarch64-static:
+```
+
+The worker nodes should have at least 200GB of disk space available.
+
 Workers should have labels applied from the following list.
 
   - `amd64` (or other Gentoo-style architecture keywords) declares the worker's CPU architecture.
