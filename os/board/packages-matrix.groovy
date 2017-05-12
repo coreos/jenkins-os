@@ -43,6 +43,16 @@ GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
 Google Storage URL, requires write permission''',
          name: 'GS_RELEASE_CREDS',
          required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
+         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
+         description: '''Credentials given here must have all permissions required by ore upload and kola run --platform=aws''',
+         required: true,
+         name: 'AWS_DEV_CREDS'],
+        string(name: 'AWS_DEV_BUCKET',
+               description: 'AWS bucket to upload images to during AMI-creation'),
+        string(name: 'AWS_REGION',
+               description: 'AWS region to use for AMIs and testing'),
         string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are downloaded'),
@@ -183,6 +193,9 @@ enter ccache --show-stats
 
 stage('Downstream') {
     build job: 'image-matrix', parameters: [
+        string(name: 'AWS_DEV_CREDS', value: params.AWS_DEV_CREDS),
+        string(name: 'AWS_DEV_BUCKET', value: params.AWS_DEV_BUCKET),
+        string(name: 'AWS_REGION', value: params.AWS_REGION),
         string(name: 'BOARD', value: params.BOARD),
         string(name: 'GROUP', value: params.GROUP),
         [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
