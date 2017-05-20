@@ -4,12 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
-         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
-         description: '''Credentials given here must have all permissions required by ore upload and kola run --platform=aws''',
-         required: true,
-         name: 'AWS_DEV_CREDS'],
         string(name: 'AWS_AMI_ID',
                description: 'AWS AMI to test'),
         string(name: 'AWS_AMI_TYPE',
@@ -18,9 +12,15 @@ properties([
         string(name: 'AWS_REGION',
                defaultValue: 'us-west-2',
                description: 'AWS region to build the test AMI for'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
+         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
+         description: 'Credentials with permissions required by "kola run --platform=aws"',
+         name: 'AWS_TEST_CREDS',
+         required: true],
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
-               description: 'Branch to use for fetching the pipeline jobs'),
+               description: 'Branch to use for fetching the pipeline jobs')
     ])
 ])
 
@@ -36,16 +36,16 @@ node('amd64') {
 
         withCredentials([
             [$class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: params.AWS_DEV_CREDS,
-                accessKeyVariable: 'AWS_ACCESS_KEY_ID', 
-                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
+             credentialsId: params.AWS_TEST_CREDS,
+             accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+             secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
         ]) {
-            withEnv(["AWS_REGION=${params.AWS_REGION}",
-                     "AWS_AMI_ID=${params.AWS_AMI_ID}",
-                     "AWS_AMI_TYPE=${params.AWS_AMI_TYPE}"]) {
+            withEnv(["AWS_AMI_ID=${params.AWS_AMI_ID}",
+                     "AWS_AMI_TYPE=${params.AWS_AMI_TYPE}",
+                     "AWS_REGION=${params.AWS_REGION}"]) {
                 rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-sudo rm -rf *.tap _kola_temp*
+rm -rf *.tap _kola_temp*
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 

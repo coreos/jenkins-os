@@ -4,10 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        string(name: 'MANIFEST_URL',
-               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_TAG',
-               defaultValue: ''),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
          defaultValue: '',
@@ -24,6 +20,10 @@ download release storage files, create compute images, and run instances''',
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
+        string(name: 'MANIFEST_URL',
+               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -59,7 +59,7 @@ node('amd64') {
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-sudo rm -rf *.tap manifests _kola_temp*
+rm -rf *.tap manifests _kola_temp*
 
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
