@@ -58,6 +58,7 @@ timeout --signal=SIGQUIT 30m bin/kola run \
     --parallel=4 \
     --basename="${NAME}" \
     --aws-ami="${AWS_AMI_ID}" \
+    --aws-region="${AWS_REGION}" \
     --aws-type="${instance_type}" \
     --platform=aws \
     --tapfile="${JOB_NAME##*/}.tap"
