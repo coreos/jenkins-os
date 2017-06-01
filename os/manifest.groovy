@@ -177,6 +177,7 @@ rm -rf .repo/local_manifests
 if [[ -n "${LOCAL_MANIFEST}" ]]; then
   mkdir -p .repo/local_manifests
   cat >.repo/local_manifests/local.xml <<<"${LOCAL_MANIFEST}"
+  COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}+local-${BUILD_NUMBER}"
 fi
 
 ./bin/cork update --create --downgrade-replace --verbose \
