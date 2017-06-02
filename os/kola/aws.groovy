@@ -54,7 +54,7 @@ if [[ "${AWS_AMI_TYPE}" == "PV" ]]; then
     instance_type="m1.small"
 fi
 
-timeout --signal=SIGQUIT 30m bin/kola run \
+timeout --signal=SIGQUIT 60m bin/kola run \
     --parallel=4 \
     --basename="${NAME}" \
     --aws-ami="${AWS_AMI_ID}" \
