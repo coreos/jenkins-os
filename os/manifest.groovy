@@ -16,12 +16,14 @@ that exists and can be parsed successfully.'''),
         string(name: 'RELEASE_BASE',
                defaultValue: '',
                description: '''When non-empty, the release version number \
-given here will be used as a source of binary packages for this build.  It \
-completely skips building the toolchains and SDK, and the package build job \
-downloads binary packages from this version so only modified packages are \
-built from source.  Be aware that no SDK will produced by this build for \
-future releases to use.  This option should not be used unless a critical \
-security fix needs to be released quickly.'''),
+given here will be used as a source of binary packages for this build.  The \
+special value "master" can also be given to use the latest successful build \
+of the manifest master branch.  This completely skips building the toolchains \
+and SDK, and the package build job downloads binary packages from this \
+version so only modified packages are built from source.  Be aware that no \
+SDK will be produced by this build for future releases to use.  This option \
+should not be used for release builds unless a critical security fix needs to \
+be released quickly.'''),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
@@ -69,6 +71,7 @@ if (!profile.BUILDS_PUSH_URL)
 
 def dprops = [:]  /* Store properties read from an artifact later.  */
 def keyring = ''
+def releaseBase = params.RELEASE_BASE
 
 node('coreos && amd64 && sudo') {
     stage('SCM') {
@@ -177,6 +180,7 @@ rm -rf .repo/local_manifests
 if [[ -n "${LOCAL_MANIFEST}" ]]; then
   mkdir -p .repo/local_manifests
   cat >.repo/local_manifests/local.xml <<<"${LOCAL_MANIFEST}"
+  COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}+local-${BUILD_NUMBER}"
 fi
 
 ./bin/cork update --create --downgrade-replace --verbose \
@@ -226,6 +230,25 @@ finish "${COREOS_BUILD_ID}"
                 }
             }
         }
+
+        /* Dereference a magic word since GCS can't handle symlinks.  */
+        if (releaseBase == 'master') {
+            withCredentials([
+                [$class: 'FileBinding',
+                 credentialsId: profile.GS_DEVEL_CREDS,
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            ]) {
+                withEnv(["DEVEL_ROOT=${profile.GS_DEVEL_ROOT}"]) {
+                    sh '''#!/bin/bash -ex
+bin/cork enter --experimental -- \
+    gsutil cat "${DEVEL_ROOT}/boards/amd64-usr/current-master/version.txt" |
+tee /dev/stderr |
+grep -m1 ^COREOS_VERSION= > current.txt
+'''  /* Editor quote safety: ' */
+                }
+            }
+            releaseBase = readFile('current.txt').trim()[15..-1]
+        }
     }
 
     stage('Post-build') {
@@ -239,7 +262,7 @@ finish "${COREOS_BUILD_ID}"
 }
 
 stage('Downstream') {
-    if (params.RELEASE_BASE) {
+    if (releaseBase) {
         def genBuildPackages = { boardToBuild, minutesToWait ->
             def board = boardToBuild    /* Create a closure with new variables.  */
             def minutes = minutesToWait /* Cute curried closures have bad refs.  */
@@ -261,7 +284,7 @@ stage('Downstream') {
                     string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
                     string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
-                    string(name: 'RELEASE_BASE', value: params.RELEASE_BASE),
+                    string(name: 'RELEASE_BASE', value: releaseBase),
                     [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS],
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: keyring),
