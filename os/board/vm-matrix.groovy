@@ -120,6 +120,49 @@ pxe
 qemu_uefi
 ''']
 
+/* Define downstream testing/prerelease builds for specific formats.  */
+def downstreams = [
+    'ami_vmdk': { if (params.BOARD == 'amd64-usr')
+        build job: '../prerelease/aws', wait: false, parameters: [
+            string(name: 'AWS_REGION', value: params.AWS_REGION),
+            [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'GROUP', value: params.GROUP),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'gce': { if (params.BOARD == 'amd64-usr')
+        build job: '../kola/gce', wait: false, parameters: [
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'qemu_uefi': {
+        build job: '../kola/qemu_uefi', wait: false, parameters: [
+            string(name: 'BOARD', value: params.BOARD),
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    }
+]
+
 /* Construct a matrix of build variation closures.  */
 def matrix_map = [:]
 
@@ -245,6 +288,10 @@ script image_to_vm.sh --board=${BOARD} \
                 deleteDir()
             }
         }
+
+        /* Spawn a downstream job for formats that require it.  */
+        if (FORMAT in downstreams)
+            downstreams[FORMAT]()
     }
 }
 
@@ -266,50 +313,4 @@ stage('Build') {
 
     matrix_map.failFast = true
     parallel matrix_map
-}
-
-stage('Downstream') {
-    parallel failFast: false,
-        'kola-gce': {
-            if (params.BOARD == 'amd64-usr')
-                build job: '../kola/gce', propagate: false, parameters: [
-                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
-                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-                ]
-        },
-        'kola-qemu_uefi': {
-            build job: '../kola/qemu_uefi', propagate: false, parameters: [
-                string(name: 'BOARD', value: params.BOARD),
-                [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
-                [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
-                string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
-        },
-        'prerelease-aws': {
-            if (params.BOARD == 'amd64-usr') {
-                build job: '../prerelease/aws', parameters: [
-                    string(name: 'AWS_REGION', value: params.AWS_REGION),
-                    [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
-                    string(name: 'GROUP', value: params.GROUP),
-                    string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                    string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-                ]
-            }
-        }
 }
