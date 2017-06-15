@@ -294,7 +294,7 @@ stage('Downstream') {
         },
         'prerelease-aws': {
             if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL != '1') {
-                build job: 'unofficial-ami', parameters: [
+                build job: '../prerelease/aws', parameters: [
                     string(name: 'AWS_REGION', value: params.AWS_REGION),
                     [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
