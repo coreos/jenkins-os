@@ -4,9 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        string(name: 'AWS_BUCKET',
-               defaultValue: "s3://coreos-dev-ami-import-us-west-2",
-               description: 'AWS bucket to upload images to during AMI-creation'),
         string(name: 'AWS_REGION',
                defaultValue: 'us-west-2',
                description: 'AWS region to use for AMIs and testing'),
@@ -32,6 +29,11 @@ download release storage files''',
         string(name: 'DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
+        string(name: 'MANIFEST_NAME',
+               defaultValue: 'release.xml'),
         string(name: 'MANIFEST_TAG',
                defaultValue: ''),
         string(name: 'MANIFEST_URL',
@@ -48,7 +50,7 @@ used to verify signed files and Git tags'''),
 
 def amiprops = [:]
 
-node('amd64') {
+node('coreos && amd64 && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -70,49 +72,58 @@ node('amd64') {
             ]) {
                 withEnv(["AWS_REGION=${params.AWS_REGION}",
                          "BOARD=amd64-usr",
+                         "CHANNEL=${params.GROUP}",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
+                         "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
-set -o pipefail
+                    sh '''#!/bin/bash -ex
 
-rm -rf tmp manifests
+rm -f coreos_production_ami_hvm.txt coreos_production_ami_pv.txt
+
+enter() {
+  bin/cork enter --experimental -- "$@"
+}
 
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap 'rm -rf "${GNUPGHOME}" "ore_amis"' EXIT
+trap 'shred -u aws-creds.ini || : ; rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-git clone --depth=1 --branch="${MANIFEST_TAG}" "${MANIFEST_URL}" manifests
-git -C manifests tag -v "${MANIFEST_TAG}"
-source manifests/version.txt
+bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
+                --manifest-url "${MANIFEST_URL}" \
+                --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+                --manifest-name "${MANIFEST_NAME}"
+source .repo/manifests/version.txt
 
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
-mkdir -p tmp
-./bin/cork download-image \
-    --cache-dir=tmp \
-    --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
-    --verify=true $verify_key \
-    --platform=aws
+cat << EOF > aws-creds.ini
+[default]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+[coreos-cl]
+aws_access_key_id = ${AWS_ACCESS_KEY_ID}
+aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
+EOF
 
-bunzip2 -k -f ./tmp/coreos_production_ami_vmdk_image.vmdk.bz2
-
-NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
-bin/ore aws upload \
-    --bucket="${AWS_BUCKET}" \
-    --region=${AWS_REGION} \
-    --file=./tmp/coreos_production_ami_vmdk_image.vmdk \
+bin/plume pre-release \
+    --debug \
+    --platform=aws \
+    --aws-credentials=aws-creds.ini \
+    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --board="${BOARD}" \
-    --create-pv=true \
-    --name="${NAME}" \
-    | tee /dev/stderr | tail -n 1 > ore_amis.json
+    --channel="${CHANNEL}" \
+    --version="${COREOS_VERSION}" \
+    $verify_key
 
-hvm_ami_id=$(jq -r '.HVM' ore_amis.json)
-pv_ami_id=$(jq -r '.PV' ore_amis.json)
+# XXX: AMI ID lists are not signed.
+enter gsutil cp "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}"/coreos_production_ami_{hvm,pv}.txt /mnt/host/source/
+
+hvm_ami_id=$(sed -n "s/\\(.*|\\|^\\)${AWS_REGION}=\\([^|]*\\).*/\\2/p" coreos_production_ami_hvm.txt)
+pv_ami_id=$(sed -n "s/\\(.*|\\|^\\)${AWS_REGION}=\\([^|]*\\).*/\\2/p" coreos_production_ami_pv.txt)
 
 tee ami.properties << EOF
 HVM_AMI_ID = ${hvm_ami_id:?}
@@ -125,7 +136,7 @@ EOF
     }
 
     stage('Post-build') {
-        archiveArtifacts 'ami.properties'
+        archiveArtifacts 'ami.properties,coreos_production_ami_hvm.txt,coreos_production_ami_pv.txt'
 
         for (line in readFile('ami.properties').trim().split("\n")) {
             def tokens = line.tokenize(" =")

@@ -227,6 +227,7 @@ stage('Downstream') {
                     string(name: 'BOARD', value: params.BOARD),
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                    string(name: 'GROUP', value: params.GROUP),
                     [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
                     string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
                     [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
