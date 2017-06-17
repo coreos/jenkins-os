@@ -134,7 +134,7 @@ gpg --import verify.asc
                   --manifest-name "${MANIFEST_NAME}"
 
 # first thing, clear out old images
-sudo rm -rf src/build
+sudo rm -rf chroot/build src/build torcx
 
 enter() {
   sudo ln -f "${GS_DEVEL_CREDS}" chroot/etc/portage/gangue.json
@@ -164,10 +164,10 @@ export COREOS_BUILD_ID
 # Set up GPG for signing images
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
-sudo rm -rf chroot/build
-script setup_board --board=${BOARD} \
-                   --getbinpkgver="${COREOS_VERSION}" \
-                   --regen_configs_only
+script setup_board \
+    --board=${BOARD} \
+    --getbinpkgver="${COREOS_VERSION}" \
+    --regen_configs_only
 
 if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
   script set_official --board=${BOARD} --official
@@ -175,14 +175,39 @@ else
   script set_official --board=${BOARD} --noofficial
 fi
 
-script build_image --board=${BOARD} \
-                   --group=${GROUP} \
-                   --getbinpkg \
-                   --getbinpkgver="${COREOS_VERSION}" \
-                   --sign="${SIGNING_USER}" \
-                   --sign_digests="${SIGNING_USER}" \
-                   --upload_root="${UPLOAD_ROOT}" \
-                   --upload prod container
+# Try to find the version's  torcx store, but don't require it
+torcx_store=
+enter gsutil cp -r \
+    "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/torcx" \
+    /mnt/host/source/ &&
+torcx_store=/mnt/host/source/torcx &&
+for image in torcx/*.torcx.tgz
+do
+        gpg --verify "${image}.sig"
+done
+
+# Work around the lack of symlink support in GCS
+shopt -s nullglob
+for default in torcx/*:com.coreos.cl.torcx.tgz
+do
+        for image in torcx/*.torcx.tgz
+        do
+                [ "x${default}" != "x${image}" ] &&
+                cmp --silent -- "${default}" "${image}" &&
+                ln -fns "${image##*/}" "${default}"
+        done
+done
+
+script build_image \
+    --board=${BOARD} \
+    --group=${GROUP} \
+    --getbinpkg \
+    --getbinpkgver="${COREOS_VERSION}" \
+    --sign="${SIGNING_USER}" \
+    --sign_digests="${SIGNING_USER}" \
+    ${torcx_store:+--torcx_store="${torcx_store}"} \
+    --upload_root="${UPLOAD_ROOT}" \
+    --upload prod container
 '''  /* Editor quote safety: ' */
                 }
             }

@@ -173,6 +173,16 @@ script build_packages \
     --board=${BOARD} \
     --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
     --skip_chroot_upgrade \
+    $([ -x src/scripts/build_torcx_store ] && echo --skip_torcx_store) \
+    --sign="${SIGNING_USER}" \
+    --sign_digests="${SIGNING_USER}" \
+    --upload_root="${UPLOAD_ROOT}" \
+    --upload
+
+# Build and upload torcx images if this version supports it
+[ -x src/scripts/build_torcx_store ] &&
+script build_torcx_store \
+    --board=${BOARD} \
     --sign="${SIGNING_USER}" \
     --sign_digests="${SIGNING_USER}" \
     --upload_root="${UPLOAD_ROOT}" \
