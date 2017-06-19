@@ -270,6 +270,7 @@ stage('Downstream') {
                 sleep time: minutes, unit: 'MINUTES'
                 build job: 'board/packages-matrix', parameters: [
                     string(name: 'AWS_REGION', value: profile.AWS_REGION),
+                    [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: profile.AWS_RELEASE_CREDS],
                     [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: profile.AWS_TEST_CREDS],
                     string(name: 'BOARD', value: board),
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''],
@@ -314,6 +315,7 @@ stage('Downstream') {
             toolchains: {
                 build job: 'toolchains', parameters: [
                     string(name: 'AWS_REGION', value: profile.AWS_REGION),
+                    [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: profile.AWS_RELEASE_CREDS],
                     [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: profile.AWS_TEST_CREDS],
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''],
                     string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),

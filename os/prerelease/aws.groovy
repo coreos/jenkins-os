@@ -8,6 +8,12 @@ properties([
                defaultValue: 'us-west-2',
                description: 'AWS region to use for AMIs and testing'),
         [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '1bb768fc-940d-4a95-95d0-27c1153e7fa0',
+         description: 'AWS credentials list for AMI creation and releasing',
+         name: 'AWS_RELEASE_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
          defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
          description: 'Credentials with permissions required by "kola run --platform=aws"',
@@ -63,12 +69,11 @@ node('coreos && amd64 && sudo') {
                  ignoreMissing: true) {
             withCredentials([
                 [$class: 'FileBinding',
+                 credentialsId: params.AWS_RELEASE_CREDS,
+                 variable: 'AWS_CREDENTIALS'],
+                [$class: 'FileBinding',
                  credentialsId: params.DOWNLOAD_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS'],
-                [$class: 'AmazonWebServicesCredentialsBinding',
-                 credentialsId: params.AWS_TEST_CREDS,
-                 accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                 secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']
+                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["AWS_REGION=${params.AWS_REGION}",
                          "BOARD=amd64-usr",
@@ -88,7 +93,7 @@ enter() {
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap 'shred -u aws-creds.ini || : ; rm -rf "${GNUPGHOME}"' EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
@@ -100,19 +105,10 @@ source .repo/manifests/version.txt
 
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
-cat << EOF > aws-creds.ini
-[default]
-aws_access_key_id = ${AWS_ACCESS_KEY_ID}
-aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
-[coreos-cl]
-aws_access_key_id = ${AWS_ACCESS_KEY_ID}
-aws_secret_access_key = ${AWS_SECRET_ACCESS_KEY}
-EOF
-
 bin/plume pre-release \
     --debug \
     --platform=aws \
-    --aws-credentials=aws-creds.ini \
+    --aws-credentials="${AWS_CREDENTIALS}" \
     --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --board="${BOARD}" \
     --channel="${CHANNEL}" \

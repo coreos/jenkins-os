@@ -8,6 +8,12 @@ properties([
                defaultValue: 'us-west-2',
                description: 'AWS region to use for AMIs and testing'),
         [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '1bb768fc-940d-4a95-95d0-27c1153e7fa0',
+         description: 'AWS credentials list for AMI creation and releasing',
+         name: 'AWS_RELEASE_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
          defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
          description: 'Credentials with permissions required by "kola run --platform=aws"',
@@ -228,6 +234,7 @@ stage('Downstream') {
             if (false && params.COREOS_OFFICIAL == '1')
                 build job: 'sign-image', parameters: [
                     string(name: 'AWS_REGION', value: params.AWS_REGION),
+                    [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS],
                     [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
                     string(name: 'BOARD', value: params.BOARD),
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
@@ -248,6 +255,7 @@ stage('Downstream') {
             else
                 build job: 'vm-matrix', parameters: [
                     string(name: 'AWS_REGION', value: params.AWS_REGION),
+                    [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS],
                     [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
                     string(name: 'BOARD', value: params.BOARD),
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
