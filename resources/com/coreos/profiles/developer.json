@@ -13,6 +13,11 @@
     "AWS_TEST_CREDS": "6d37d17c-503e-4596-9a9b-1ab4373955a9",
 
     /*
+     * Azure credentials are required by plume for official releases.
+     */
+    "AZURE_CREDS": "7ab88376-e794-4128-b644-41c83c89e76d",
+
+    /*
      * The OS build ID should be changed when building with a different
      * manifest job, when reusing build numbers would cause conflicting
      * branch names in the manifest-builds repository.

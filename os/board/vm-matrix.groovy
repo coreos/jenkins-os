@@ -19,6 +19,12 @@ properties([
          description: 'Credentials with permissions required by "kola run --platform=aws"',
          name: 'AWS_TEST_CREDS',
          required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '7ab88376-e794-4128-b644-41c83c89e76d',
+         description: 'JSON credentials file for all Azure clouds used by plume',
+         name: 'AZURE_CREDS',
+         required: true],
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
@@ -138,6 +144,18 @@ def downstreams = [
             string(name: 'GROUP', value: params.GROUP),
             string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
             string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'azure': { if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL == '1')
+        build job: '../prerelease/azure', wait: false, parameters: [
+            [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: params.AZURE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'GROUP', value: params.GROUP),
             string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
