@@ -40,7 +40,7 @@ used to verify signed files and Git tags'''),
 /* The kola step doesn't fail the job, so save the return code separately.  */
 def rc = 0
 
-node('amd64 && kvm') {
+node('amd64 && kvm && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -63,15 +63,10 @@ node('amd64 && kvm') {
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-sudo rm -rf src/scripts/_kola_temp tmp _kola_temp*
+sudo rm -rf *.tap src/scripts/_kola_temp tmp _kola_temp*
 
 enter() {
   bin/cork enter --experimental -- "$@"
-}
-
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  enter "${script}" "$@"
 }
 
 # set up GPG for verifying tags
@@ -81,10 +76,10 @@ trap "rm -rf '${GNUPGHOME}'" EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                  --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                  --manifest-name "${MANIFEST_NAME}"
+bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
+                --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+                --manifest-name "${MANIFEST_NAME}" \
+                --manifest-url "${MANIFEST_URL}"
 source .repo/manifests/version.txt
 
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
@@ -109,7 +104,9 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --platform=qemu \
     --qemu-bios=bios-256k.bin \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
-    --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
+    --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap"
+
+sudo rm -rf tmp
 
 if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
   enter gsutil cp "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/version.txt" \
@@ -134,7 +131,7 @@ fi
               showOnlyFailures: false,
               skipIfBuildNotOk: false,
               stripSingleParents: false,
-              testResults: 'tmp/*.tap',
+              testResults: '*.tap',
               todoIsFailure: false,
               validateNumberOfTests: true,
               verbose: true])
