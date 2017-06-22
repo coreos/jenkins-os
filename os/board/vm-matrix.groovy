@@ -4,15 +4,30 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        string(name: 'AWS_REGION',
+               defaultValue: 'us-west-2',
+               description: 'AWS region to use for AMIs and testing'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '1bb768fc-940d-4a95-95d0-27c1153e7fa0',
+         description: 'AWS credentials list for AMI creation and releasing',
+         name: 'AWS_RELEASE_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
+         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
+         description: 'Credentials with permissions required by "kola run --platform=aws"',
+         name: 'AWS_TEST_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '7ab88376-e794-4128-b644-41c83c89e76d',
+         description: 'JSON credentials file for all Azure clouds used by plume',
+         name: 'AZURE_CREDS',
+         required: true],
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
-        string(name: 'MANIFEST_URL',
-               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_TAG',
-               defaultValue: ''),
-        string(name: 'MANIFEST_NAME',
-               defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
          defaultValue: '',
@@ -21,6 +36,9 @@ properties([
          required: false],
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
@@ -40,24 +58,18 @@ GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
 Google Storage URL, requires write permission''',
          name: 'GS_RELEASE_CREDS',
          required: true],
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
-         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
-         description: '''Credentials given here must have all permissions required by ore upload and kola run --platform=aws''',
-         required: true,
-         name: 'AWS_DEV_CREDS'],
-        string(name: 'AWS_DEV_BUCKET',
-               defaultValue: "s3://coreos-dev-ami-import-us-west-2",
-               description: 'AWS bucket to upload images to during AMI-creation'),
-        string(name: 'AWS_REGION',
-               defaultValue: 'us-west-2',
-               description: 'AWS region to use for AMIs and testing'),
         string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are downloaded'),
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are uploaded'),
+        string(name: 'MANIFEST_NAME',
+               defaultValue: 'release.xml'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
+        string(name: 'MANIFEST_URL',
+               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'buildbot-official.EF4B4ED9.subkey.gpg',
@@ -120,6 +132,62 @@ pxe
 qemu_uefi
 ''']
 
+/* Define downstream testing/prerelease builds for specific formats.  */
+def downstreams = [
+    'ami_vmdk': { if (params.BOARD == 'amd64-usr')
+        build job: '../prerelease/aws', wait: false, parameters: [
+            string(name: 'AWS_REGION', value: params.AWS_REGION),
+            [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'GROUP', value: params.GROUP),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'azure': { if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL == '1')
+        build job: '../prerelease/azure', wait: false, parameters: [
+            [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: params.AZURE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'GROUP', value: params.GROUP),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'gce': { if (params.BOARD == 'amd64-usr')
+        build job: '../kola/gce', wait: false, parameters: [
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'qemu_uefi': {
+        build job: '../kola/qemu_uefi', wait: false, parameters: [
+            string(name: 'BOARD', value: params.BOARD),
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    }
+]
+
 /* Construct a matrix of build variation closures.  */
 def matrix_map = [:]
 
@@ -151,14 +219,14 @@ for (format in format_list) {
                      credentialsId: params.GS_RELEASE_CREDS,
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS']
                 ]) {
-                    withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                    withEnv(["BOARD=${params.BOARD}",
+                             "COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                             "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
+                             "FORMAT=${FORMAT}",
+                             "GS_DEVEL_ROOT=${params.GS_DEVEL_ROOT}",
                              "MANIFEST_NAME=${params.MANIFEST_NAME}",
                              "MANIFEST_TAG=${params.MANIFEST_TAG}",
                              "MANIFEST_URL=${params.MANIFEST_URL}",
-                             "BOARD=${params.BOARD}",
-                             "FORMAT=${FORMAT}",
-                             "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
-                             "GS_DEVEL_ROOT=${params.GS_DEVEL_ROOT}",
                              "SIGNING_USER=${params.SIGNING_USER}",
                              "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
                         sh '''#!/bin/bash -ex
@@ -245,6 +313,10 @@ script image_to_vm.sh --board=${BOARD} \
                 deleteDir()
             }
         }
+
+        /* Spawn a downstream job for formats that require it.  */
+        if (FORMAT in downstreams)
+            downstreams[FORMAT]()
     }
 }
 
@@ -266,49 +338,4 @@ stage('Build') {
 
     matrix_map.failFast = true
     parallel matrix_map
-}
-
-stage('Downstream') {
-    parallel failFast: false,
-        'kola-gce': {
-            if (params.BOARD == 'amd64-usr')
-                build job: '../kola/gce', propagate: false, parameters: [
-                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
-                    string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-                ]
-        },
-        'kola-qemu_uefi': {
-            build job: '../kola/qemu_uefi', propagate: false, parameters: [
-                string(name: 'BOARD', value: params.BOARD),
-                [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
-                [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
-                string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
-        },
-        'aws_amis': {
-            if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL != '1') {
-                build job: 'unofficial-ami', parameters: [
-                    string(name: 'AWS_DEV_CREDS', value: params.AWS_DEV_CREDS),
-                    string(name: 'AWS_DEV_BUCKET', value: params.AWS_DEV_BUCKET),
-                    string(name: 'AWS_REGION', value: params.AWS_REGION),
-                    string(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    string(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
-                    string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-                ]
-            } /* TODO(euank): else, pre-release an official ami to test */
-        }
 }

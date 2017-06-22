@@ -1,5 +1,0 @@
-The buildTree function returns a string formatted for Slack notifications that
-draws a tree of builds and their results.  It takes a single argument, the run
-farthest upstream to be drawn.  Normally, it will be called like this:
-
-    slackSend message: "Build tree:\n${buildTree currentBuild}"

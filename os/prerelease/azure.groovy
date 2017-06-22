@@ -5,6 +5,12 @@ properties([
 
     parameters([
         [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '7ab88376-e794-4128-b644-41c83c89e76d',
+         description: 'JSON credentials file for all Azure clouds used by plume',
+         name: 'AZURE_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
          defaultValue: '',
          description: 'Credential ID for SSH Git clone URLs',
@@ -14,12 +20,12 @@ properties([
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
          description: '''Credentials given here must have permission to \
-download release storage files, create compute images, and run instances''',
-         name: 'GS_RELEASE_CREDS',
+download release storage files''',
+         name: 'DOWNLOAD_CREDS',
          required: true],
-        string(name: 'GS_RELEASE_ROOT',
-               defaultValue: 'gs://builds.developer.core-os.net',
-               description: 'URL prefix where image files are downloaded'),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         string(name: 'MANIFEST_TAG',
                defaultValue: ''),
         string(name: 'MANIFEST_URL',
@@ -34,9 +40,6 @@ used to verify signed files and Git tags'''),
     ])
 ])
 
-/* The kola step doesn't fail the job, so save the return code separately.  */
-def rc = 0
-
 node('amd64') {
     stage('Build') {
         step([$class: 'CopyArtifact',
@@ -50,21 +53,24 @@ node('amd64') {
                  ignoreMissing: true) {
             withCredentials([
                 [$class: 'FileBinding',
-                 credentialsId: params.GS_RELEASE_CREDS,
+                 credentialsId: params.AZURE_CREDS,
+                 variable: 'AZURE_CREDENTIALS'],
+                [$class: 'FileBinding',
+                 credentialsId: params.DOWNLOAD_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 withEnv(["BOARD=amd64-usr",
-                         "DOWNLOAD_ROOT=${params.GS_RELEASE_ROOT}",
+                         "CHANNEL=${params.GROUP}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
-                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
+                    sh '''#!/bin/bash -ex
 
-rm -rf *.tap manifests _kola_temp*
+rm -rf manifests
 
 # set up GPG for verifying tags
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
@@ -72,51 +78,20 @@ git clone --depth=1 --branch="${MANIFEST_TAG}" "${MANIFEST_URL}" manifests
 git -C manifests tag -v "${MANIFEST_TAG}"
 source manifests/version.txt
 
-NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
+[ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
-bin/ore gcloud create-image \
-    --board="${BOARD}" \
-    --family="${NAME}" \
-    --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --source-root="${DOWNLOAD_ROOT}/boards" \
-    --version="${COREOS_VERSION}"
-
-GCE_NAME="${NAME//[+.]/-}-${COREOS_VERSION//[+.]/-}"
-
-timeout --signal=SIGQUIT 60m bin/kola run \
-    --gce-image="${GCE_NAME}" \
+bin/plume pre-release \
+    --debug \
+    --platform=azure \
+    --azure-profile="${AZURE_CREDENTIALS}" \
     --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --parallel=4 \
-    --platform=gce \
-    --tapfile="${JOB_NAME##*/}.tap"
+    --board="${BOARD}" \
+    --channel="${CHANNEL}" \
+    --version="${COREOS_VERSION}" \
+    $verify_key
 '''  /* Editor quote safety: ' */
                 }
             }
         }
     }
-
-    stage('Post-build') {
-        step([$class: 'TapPublisher',
-              discardOldReports: false,
-              enableSubtests: true,
-              failIfNoResults: true,
-              failedTestsMarkBuildAsFailure: true,
-              flattenTapResult: false,
-              includeCommentDiagnostics: true,
-              outputTapToConsole: true,
-              planRequired: true,
-              showOnlyFailures: false,
-              skipIfBuildNotOk: false,
-              stripSingleParents: false,
-              testResults: '*.tap',
-              todoIsFailure: false,
-              validateNumberOfTests: true,
-              verbose: true])
-
-        sh 'tar -cJf _kola_temp.tar.xz _kola_temp'
-        archiveArtifacts '_kola_temp.tar.xz'
-    }
 }
-
-/* Propagate the job status after publishing TAP results.  */
-currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'

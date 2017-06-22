@@ -8,6 +8,10 @@ properties([
         choice(name: 'CHANNEL',
                choices: "alpha\nbeta\nstable",
                description: 'Which release channel to use'),
+        string(name: 'BASE_VERSION',
+               defaultValue: '',
+               description: '''Copy documentation from this release if
+given, otherwise sync documentation from Git'''),
     ])
 ])
 
@@ -26,6 +30,7 @@ def gitEmail = 'team-cl@coreos.com'
 def gcRepo = 'https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64'
 
 /* Generate all of the actual required strings from the above values.  */
+def base = params.BASE_VERSION
 def channel = params.CHANNEL
 def version = params.VERSION
 def branch = "build-${version.split(/\./)[0]}"
@@ -43,6 +48,7 @@ node('amd64 && docker') {
             sh """#!/bin/bash -ex
 rm -fr coreos-pages pages
 git clone ${docsUrl} coreos-pages
+test -d coreos-pages/_os/${base ?: '.'}  # sanity check
 git clone --depth=1 ${pagesUrl} pages
 git -C coreos-pages config user.name '${gitAuthor}'
 git -C coreos-pages config user.email '${gitEmail}'
@@ -51,7 +57,8 @@ git -C coreos-pages checkout -B ${branch}
         }
 
         stage('Build') {
-            sh '''#!/bin/bash -ex
+            if (base == '')
+                sh '''#!/bin/bash -ex
 docker run --rm -i \
     -v "$PWD/pages/sync:/source" \
     -w /source \
@@ -107,20 +114,26 @@ git -C coreos-pages commit -am 'os: prune old releases' || :
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
                 sh """#!/bin/bash -ex
-cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json
+cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json && chmod 0600 account.json
+trap 'shred -u account.json' EXIT
 docker run --rm -i \
     -v "\$PWD:/workspace" \
     -w /workspace/coreos-pages \
     fedora:latest \
     /bin/bash -ex << EOF
-trap 'shred -u /workspace/account.json' EXIT
 dnf --repofrompath='gcloud,${gcRepo}' -y install git google-cloud-sdk jq which
 gcloud auth activate-service-account --key-file=/workspace/account.json
 ../pages/scripts/sync-release ${channel} ${version}
 chown -R \$(id -u):\$(id -g) .
 EOF
 
-(cd pages/sync && exec ./sync -p os -r ${version})
+if [ -n '${base}' ]
+then
+        cp -r coreos-pages/_os/${base} coreos-pages/_os/${version}
+        sed -i -e 's/${base}/${version}/g' coreos-pages/_os/${version}/*.*
+else
+        (cd pages/sync && exec ./sync -p os -r ${version})
+fi
 
 git -C coreos-pages add .
 git -C coreos-pages commit -am 'os: sync ${version}'

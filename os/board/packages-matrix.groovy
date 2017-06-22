@@ -4,18 +4,30 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        string(name: 'AWS_REGION',
+               defaultValue: 'us-west-2',
+               description: 'AWS region to use for AMIs and testing'),
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '1bb768fc-940d-4a95-95d0-27c1153e7fa0',
+         description: 'AWS credentials list for AMI creation and releasing',
+         name: 'AWS_RELEASE_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
+         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
+         description: 'Credentials with permissions required by "kola run --platform=aws"',
+         name: 'AWS_TEST_CREDS',
+         required: true],
+        [$class: 'CredentialsParameterDefinition',
+         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+         defaultValue: '7ab88376-e794-4128-b644-41c83c89e76d',
+         description: 'JSON credentials file for all Azure clouds used by plume',
+         name: 'AZURE_CREDS',
+         required: true],
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
-        string(name: 'GROUP',
-               defaultValue: 'developer',
-               description: 'Which release group owns this build'),
-        string(name: 'MANIFEST_URL',
-               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_TAG',
-               defaultValue: ''),
-        string(name: 'MANIFEST_NAME',
-               defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
          defaultValue: '',
@@ -24,6 +36,9 @@ properties([
          required: false],
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        string(name: 'GROUP',
+               defaultValue: 'developer',
+               description: 'Which release group owns this build'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
@@ -43,22 +58,18 @@ GOOGLE_APPLICATION_CREDENTIALS value for uploading release files to the \
 Google Storage URL, requires write permission''',
          name: 'GS_RELEASE_CREDS',
          required: true],
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
-         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
-         description: '''Credentials given here must have all permissions required by ore upload and kola run --platform=aws''',
-         required: true,
-         name: 'AWS_DEV_CREDS'],
-        string(name: 'AWS_DEV_BUCKET',
-               description: 'AWS bucket to upload images to during AMI-creation'),
-        string(name: 'AWS_REGION',
-               description: 'AWS region to use for AMIs and testing'),
         string(name: 'GS_RELEASE_DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are downloaded'),
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where release files are uploaded'),
+        string(name: 'MANIFEST_NAME',
+               defaultValue: 'release.xml'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
+        string(name: 'MANIFEST_URL',
+               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         string(name: 'RELEASE_BASE',
                defaultValue: '',
                description: 'Use binary packages from this release version'),
@@ -100,12 +111,12 @@ node('coreos && amd64 && sudo') {
                  credentialsId: params.GS_DEVEL_CREDS,
                  variable: 'GOOGLE_APPLICATION_CREDENTIALS']
             ]) {
-                withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                withEnv(["BOARD=${params.BOARD}",
+                         "COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
-                         "BOARD=${params.BOARD}",
-                         "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
                          "RELEASE_BASE=${params.RELEASE_BASE}",
                          "SIGNING_USER=${params.SIGNING_USER}",
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
@@ -174,6 +185,16 @@ script build_packages \
     --board=${BOARD} \
     --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
     --skip_chroot_upgrade \
+    $([ -x src/scripts/build_torcx_store ] && echo --skip_torcx_store) \
+    --sign="${SIGNING_USER}" \
+    --sign_digests="${SIGNING_USER}" \
+    --upload_root="${UPLOAD_ROOT}" \
+    --upload
+
+# Build and upload torcx images if this version supports it
+[ -x src/scripts/build_torcx_store ] &&
+script build_torcx_store \
+    --board=${BOARD} \
     --sign="${SIGNING_USER}" \
     --sign_digests="${SIGNING_USER}" \
     --upload_root="${UPLOAD_ROOT}" \
@@ -193,13 +214,14 @@ enter ccache --show-stats
 
 stage('Downstream') {
     build job: 'image-matrix', parameters: [
-        string(name: 'AWS_DEV_CREDS', value: params.AWS_DEV_CREDS),
-        string(name: 'AWS_DEV_BUCKET', value: params.AWS_DEV_BUCKET),
         string(name: 'AWS_REGION', value: params.AWS_REGION),
+        [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS],
+        [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
+        [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: params.AZURE_CREDS],
         string(name: 'BOARD', value: params.BOARD),
-        string(name: 'GROUP', value: params.GROUP),
         [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+        string(name: 'GROUP', value: params.GROUP),
         [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
         string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
         [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],

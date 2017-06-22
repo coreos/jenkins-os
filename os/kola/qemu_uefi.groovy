@@ -7,12 +7,6 @@ properties([
         choice(name: 'BOARD',
                choices: "amd64-usr\narm64-usr",
                description: 'Target board to build'),
-        string(name: 'MANIFEST_URL',
-               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
-        string(name: 'MANIFEST_TAG',
-               defaultValue: ''),
-        string(name: 'MANIFEST_NAME',
-               defaultValue: 'release.xml'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
          defaultValue: '',
@@ -30,6 +24,12 @@ Google Storage URL, requires read permission''',
         string(name: 'DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
+        string(name: 'MANIFEST_NAME',
+               defaultValue: 'release.xml'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
+        string(name: 'MANIFEST_URL',
+               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -43,7 +43,7 @@ used to verify signed files and Git tags'''),
 /* The kola step doesn't fail the job, so save the return code separately.  */
 def rc = 0
 
-node('amd64 && kvm') {
+node('amd64 && kvm && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -66,15 +66,10 @@ node('amd64 && kvm') {
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-sudo rm -rf src/scripts/_kola_temp tmp _kola_temp*
+sudo rm -rf *.tap src/scripts/_kola_temp tmp _kola_temp*
 
 enter() {
   bin/cork enter --experimental -- "$@"
-}
-
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  enter "${script}" "$@"
 }
 
 # set up GPG for verifying tags
@@ -84,10 +79,10 @@ trap "rm -rf '${GNUPGHOME}'" EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                  --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                  --manifest-name "${MANIFEST_NAME}"
+bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
+                --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+                --manifest-name "${MANIFEST_NAME}" \
+                --manifest-url "${MANIFEST_URL}"
 source .repo/manifests/version.txt
 
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
@@ -112,7 +107,9 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --platform=qemu \
     --qemu-bios=/mnt/host/source/tmp/coreos_production_qemu_uefi_efi_code.fd \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
-    --tapfile="/mnt/host/source/tmp/${JOB_NAME##*/}.tap"
+    --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap"
+
+sudo rm -rf tmp
 '''  /* Editor quote safety: ' */
                 }
             }
@@ -132,7 +129,7 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
               showOnlyFailures: false,
               skipIfBuildNotOk: false,
               stripSingleParents: false,
-              testResults: 'tmp/*.tap',
+              testResults: '*.tap',
               todoIsFailure: false,
               validateNumberOfTests: true,
               verbose: true])
