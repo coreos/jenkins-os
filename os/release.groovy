@@ -4,9 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to release'),
         choice(name: 'CHANNEL',
                choices: "alpha\nbeta\nstable",
                description: 'Which release channel to use'),
@@ -52,18 +49,29 @@ node('amd64') {
              credentialsId: params.GCE_CREDS,
              variable: 'GOOGLE_APPLICATION_CREDENTIALS']
         ]) {
-            withEnv(["BOARD=${params.BOARD}",
-                     "CHANNEL=${params.CHANNEL}",
+            withEnv(["CHANNEL=${params.CHANNEL}",
                      "VERSION=${params.VERSION}"]) {
-                    sh '''#!/bin/bash -ex
-bin/plume release \
-    --debug \
-    --aws-credentials="${AWS_CREDENTIALS}" \
-    --azure-profile="${AZURE_CREDENTIALS}" \
-    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --board="${BOARD}" \
-    --channel="${CHANNEL}" \
-    --version="${VERSION}"
+                sh '''#!/bin/bash -ex
+case "${CHANNEL}" in
+    stable)
+        boards=( amd64-usr )
+        ;;
+    *)
+        boards=( amd64-usr arm64-usr )
+        ;;
+esac
+
+for board in "${boards[@]}"
+do
+        bin/plume release \
+            --debug \
+            --aws-credentials="${AWS_CREDENTIALS}" \
+            --azure-profile="${AZURE_CREDENTIALS}" \
+            --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+            --board="${board}" \
+            --channel="${CHANNEL}" \
+            --version="${VERSION}"
+done
 '''  /* Editor quote safety: ' */
             }
         }
