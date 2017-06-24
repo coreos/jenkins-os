@@ -1,10 +1,10 @@
 import org.kohsuke.github.GitHub
 
 /*
- * Create a pull request on GitHub.
+ * Create a pull request on GitHub and return its URL.
  */
 @NonCPS
-void call(Map args) {
+URL call(Map args) {
     final String sourceBranch = args.sourceBranch ?: 'master'
     final String upstreamBranch = args.upstreamBranch ?: 'master'
     final String message = args.message ?: ''
@@ -24,4 +24,5 @@ void call(Map args) {
                            "${sourceOwner}:${sourceBranch}",
                            upstreamBranch,
                            message)
+        .htmlUrl
 }
