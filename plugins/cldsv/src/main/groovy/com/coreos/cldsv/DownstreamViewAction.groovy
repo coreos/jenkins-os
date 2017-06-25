@@ -20,8 +20,9 @@ public class DownstreamViewAction implements Action {
     public Run getBuild() { this.build }
 
     public Map getBuildOrigin() {
+        String baseDir = this.build.parent.fullName.split('/')[0]
         def builds = [:].withDefault { [].withDefault { [downstreams: [], params: [:]] } }
-        Jenkins.instance.getItemByFullName('os').allJobs.each { job ->
+        Jenkins.instance.getItemByFullName(baseDir).allJobs.each { job ->
             job.builds.each { build ->
                 builds[job.fullName][build.number].run = build
 
