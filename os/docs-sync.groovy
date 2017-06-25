@@ -173,12 +173,14 @@ git -C coreos-pages push -f ${forkUrl} ${branch}
 
     stage('PR') {
         withCredentials([string(credentialsId: loginCreds, variable: 'pat')]) {
-            createPullRequest(token: pat,
-                              upstreamProject: docsProject,
-                              sourceOwner: username,
-                              sourceBranch: branch,
-                              title: "os: sync ${version}",
-                              message: "From: ${env.BUILD_URL}")
+            def url = createPullRequest token: pat,
+                                        upstreamProject: docsProject,
+                                        sourceOwner: username,
+                                        sourceBranch: branch,
+                                        title: "os: sync ${version}",
+                                        message: "From: ${env.BUILD_URL}"
+            slackSend color: '#2020C0',
+                      message: "${version} (${channel}) docs: ${url}"
         }
     }
 }
