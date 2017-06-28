@@ -154,12 +154,10 @@ def downstreams = [
     'azure': { if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL == '1')
         build job: '../prerelease/azure', wait: false, parameters: [
             [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: params.AZURE_CREDS],
-            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
             [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
             string(name: 'GROUP', value: params.GROUP),
-            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'VERSION', value: it.version),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
