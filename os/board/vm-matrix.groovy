@@ -199,6 +199,8 @@ for (format in format_list) {
     def FORMAT = format  /* This MUST use fresh variables per iteration.  */
 
     matrix_map[FORMAT] = {
+        def version = ''
+
         node('coreos && amd64 && sudo') {
             step([$class: 'CopyArtifact',
                   fingerprintArtifacts: true,
@@ -309,6 +311,9 @@ script image_to_vm.sh --board=${BOARD} \
                 }
             }
 
+            version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt",
+                         returnStdout: true).trim()
+
             fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
             dir('tmp') {
                 deleteDir()
@@ -317,7 +322,7 @@ script image_to_vm.sh --board=${BOARD} \
 
         /* Spawn a downstream job for formats that require it.  */
         if (FORMAT in downstreams)
-            downstreams[FORMAT]()
+            downstreams[FORMAT](version: version)
     }
 }
 
