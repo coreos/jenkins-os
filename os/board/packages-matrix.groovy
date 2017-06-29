@@ -122,86 +122,26 @@ node('coreos && amd64 && sudo') {
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
-# build may not be started without a ref value
-[[ -n "${MANIFEST_TAG}" ]]
+# The build may not be started without a tag value.
+[ -n "${MANIFEST_TAG}" ]
 
-# set up GPG for verifying tags
+# Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                  --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                  --manifest-name "${MANIFEST_NAME}" \
-                  -- --toolchain_boards=${BOARD}
+bin/cork update \
+    --create --downgrade-replace --verify --verify-signature --verbose \
+    --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+    --manifest-name "${MANIFEST_NAME}" \
+    --manifest-url "${MANIFEST_URL}" \
+    -- --toolchain_boards="${BOARD}"
 
-# use a ccache dir that persists across sdk recreations
-# XXX: alternatively use a ccache dir that is usable by all jobs on a given node.
-mkdir -p .cache/ccache
-
-enter() {
-  sudo ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" chroot/etc/portage/gangue.json
-  [ -s verify.asc ] &&
-  sudo ln -f verify.asc chroot/etc/portage/gangue.asc &&
-  verify_key=--verify-key=/etc/portage/gangue.asc || verify_key=
-  trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
-  ./bin/cork enter --experimental -- env \
-    CCACHE_DIR=/mnt/host/source/.cache/ccache \
-    CCACHE_MAXSIZE=5G \
-    COREOS_DEV_BUILDS="${DOWNLOAD_ROOT}" \
-    PORTAGE_SSH_OPTS= \
-    {FETCH,RESUME}COMMAND_GS="/usr/bin/gangue get \
---json-key=/etc/portage/gangue.json $verify_key \
-"'"${URI}" "${DISTDIR}/${FILE}"' \
-    "$@"
-}
-
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  enter "${script}" "$@"
-}
-
-sudo cp bin/gangue chroot/usr/bin/gangue  # XXX: until SDK mantle has it
-
-source .repo/manifests/version.txt
-export COREOS_BUILD_ID
-
-# Set up GPG for signing images
-gpg --import "${GPG_SECRET_KEY_FILE}"
-
-# figure out if ccache is doing us any good in this scheme
-enter ccache --zero-stats
-
-script setup_board \
-    --board=${BOARD} \
-    --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
-    --skip_chroot_upgrade \
-    --force
-
-script build_packages \
-    --board=${BOARD} \
-    --getbinpkgver=${RELEASE_BASE:-${COREOS_VERSION} --toolchainpkgonly} \
-    --skip_chroot_upgrade \
-    $([ -x src/scripts/build_torcx_store ] && echo --skip_torcx_store) \
-    --sign="${SIGNING_USER}" \
-    --sign_digests="${SIGNING_USER}" \
-    --upload_root="${UPLOAD_ROOT}" \
-    --upload
-
-# Build and upload torcx images if this version supports it
-[ -x src/scripts/build_torcx_store ] &&
-script build_torcx_store \
-    --board=${BOARD} \
-    --sign="${SIGNING_USER}" \
-    --sign_digests="${SIGNING_USER}" \
-    --upload_root="${UPLOAD_ROOT}" \
-    --upload
-
-enter ccache --show-stats
-'''  /* Editor quote safety: ' */
+# Run branch-specific build commands from the scripts repository.
+. src/scripts/jenkins/packages.sh
+'''
                 }
             }
         }

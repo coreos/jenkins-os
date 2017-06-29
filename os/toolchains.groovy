@@ -119,48 +119,28 @@ node('coreos && amd64 && sudo') {
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
-# build may not be started without a ref value
-[[ -n "${MANIFEST_TAG}" ]]
+# The build may not be started without a tag value.
+[ -n "${MANIFEST_TAG}" ]
 
-# hack because catalyst leaves things chowned as root
-[[ -d .cache/sdks ]] && sudo chown -R $USER .cache/sdks
+# Catalyst leaves things chowned as root.
+[ -d .cache/sdks ] && sudo chown -R "$USER" .cache/sdks
 
-# set up GPG for verifying tags
+# Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                  --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                  --manifest-name "${MANIFEST_NAME}"
+bin/cork update \
+    --create --downgrade-replace --verify --verify-signature --verbose \
+    --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+    --manifest-name "${MANIFEST_NAME}" \
+    --manifest-url "${MANIFEST_URL}"
 
-enter() {
-  ./bin/cork enter --experimental -- "$@"
-}
-
-source .repo/manifests/version.txt
-export COREOS_BUILD_ID
-
-# Set up GPG for signing images
-gpg --import "${GPG_SECRET_KEY_FILE}"
-
-# Wipe all of catalyst
-sudo rm -rf src/build
-
-S=/mnt/host/source/src/scripts
-enter sudo emerge -uv --jobs=2 catalyst
-enter sudo ${S}/build_toolchains \
-    --sign="${SIGNING_USER}" \
-    --sign_digests="${SIGNING_USER}" \
-    --upload_root="${UPLOAD_ROOT}" \
-    --upload
-
-# Free some disk space only on success, for debugging failures
-sudo rm -rf src/build/catalyst/builds
-'''  /* Editor quote safety: ' */
+# Run branch-specific build commands from the scripts repository.
+. src/scripts/jenkins/toolchains.sh
+'''
                 }
             }
         }
