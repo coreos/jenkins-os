@@ -140,14 +140,10 @@ def downstreams = [
             string(name: 'AWS_REGION', value: params.AWS_REGION),
             [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS],
             [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
-            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
             [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
             string(name: 'GROUP', value: params.GROUP),
-            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'VERSION', value: it.version),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },

@@ -55,6 +55,8 @@ node('amd64') {
                      "COREOS_VERSION=${params.VERSION}"]) {
                     sh '''#!/bin/bash -ex
 
+rm -f images.json
+
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
 bin/plume pre-release \
@@ -65,9 +67,14 @@ bin/plume pre-release \
     --board="${BOARD}" \
     --channel="${CHANNEL}" \
     --version="${COREOS_VERSION}" \
+    --write-image-list=images.json \
     $verify_key
 '''  /* Editor quote safety: ' */
             }
         }
+    }
+
+    stage('Post-build') {
+        archiveArtifacts 'images.json'
     }
 }
