@@ -20,8 +20,16 @@ public class DownstreamViewAction implements Action {
     public Run getBuild() { this.build }
 
     public Map getBuildOrigin() {
+        Class replayCause = null
+        try {
+            replayCause = Jenkins.instance.pluginManager.uberClassLoader.findClass 'org.jenkinsci.plugins.workflow.cps.replay.ReplayCause'
+        } catch (ClassNotFoundException err) {
+            /* The optional Pipeline plugin is not loaded yet.  Ignore it.  */
+        }
+
+        String baseDir = this.build.parent.fullName.split('/')[0]
         def builds = [:].withDefault { [].withDefault { [downstreams: [], params: [:]] } }
-        Jenkins.instance.getItemByFullName('os').allJobs.each { job ->
+        Jenkins.instance.getItemByFullName(baseDir).allJobs.each { job ->
             job.builds.each { build ->
                 builds[job.fullName][build.number].run = build
 
@@ -31,7 +39,9 @@ public class DownstreamViewAction implements Action {
                     }
                 }
 
-                Run up = build.getCause(Cause.UpstreamCause)?.upstreamRun
+                Run up = null
+                for (Run play = build; play != null; play = replayCause != null ? play.getCause(replayCause)?.original : null)
+                    up = play.getCause(Cause.UpstreamCause)?.upstreamRun
                 if (up == null)
                     return
 

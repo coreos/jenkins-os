@@ -154,23 +154,18 @@ def downstreams = [
     'azure': { if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL == '1')
         build job: '../prerelease/azure', wait: false, parameters: [
             [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: params.AZURE_CREDS],
-            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
             [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
             string(name: 'GROUP', value: params.GROUP),
-            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'VERSION', value: it.version),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
     'gce': { if (params.BOARD == 'amd64-usr')
         build job: '../kola/gce', wait: false, parameters: [
-            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
             [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
             string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'VERSION', value: it.version),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
@@ -199,6 +194,8 @@ for (format in format_list) {
     def FORMAT = format  /* This MUST use fresh variables per iteration.  */
 
     matrix_map[FORMAT] = {
+        def version = ''
+
         node('coreos && amd64 && sudo') {
             step([$class: 'CopyArtifact',
                   fingerprintArtifacts: true,
@@ -309,6 +306,9 @@ script image_to_vm.sh --board=${BOARD} \
                 }
             }
 
+            version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt",
+                         returnStdout: true).trim()
+
             fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
             dir('tmp') {
                 deleteDir()
@@ -317,7 +317,7 @@ script image_to_vm.sh --board=${BOARD} \
 
         /* Spawn a downstream job for formats that require it.  */
         if (FORMAT in downstreams)
-            downstreams[FORMAT]()
+            downstreams[FORMAT](version: version)
     }
 }
 

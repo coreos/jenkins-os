@@ -1,6 +1,6 @@
 The createPullRequest function creates a new pull request on GitHub.  It will
 perform the entire session of API operations, so it is not necessary to manage
-connection handles, etc.
+connection handles, etc.  The URL of the pull request is returned on success.
 
 Parameters must be given as named arguments.  The following parameters are for
 password authentication.

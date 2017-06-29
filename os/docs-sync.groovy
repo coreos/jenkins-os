@@ -10,8 +10,13 @@ properties([
                description: 'Which release channel to use'),
         string(name: 'BASE_VERSION',
                defaultValue: '',
-               description: '''Copy documentation from this release if
+               description: '''Copy documentation from this release if \
 given, otherwise sync documentation from Git'''),
+        choice(name: 'LATEST',
+               choices: "auto\nyes\no",
+               description: '''Whether to set the "latest" directory \
+to this version, determined by comparing the version to all active \
+versions when using "auto"'''),
     ])
 ])
 
@@ -25,8 +30,9 @@ def docsProject = 'coreos-inc/coreos-pages'
 def pagesProject = 'coreos-inc/pages'
 
 def gitAuthor = 'Jenkins OS'
-def gitEmail = 'team-cl@coreos.com'
+def gitEmail = 'team-os@coreos.com'
 
+def api = 'https://public.update.core-os.net/_ah/api/update/v1/public/channels'
 def gcRepo = 'https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64'
 
 /* Generate all of the actual required strings from the above values.  */
@@ -34,6 +40,7 @@ def base = params.BASE_VERSION
 def channel = params.CHANNEL
 def version = params.VERSION
 def branch = "build-${version.split(/\./)[0]}"
+def latest = params.LATEST == 'yes'
 
 def forkProject = "${username}/${docsProject.split('/')[-1]}"
 
@@ -108,6 +115,12 @@ git -C coreos-pages commit -am 'os: prune old releases' || :
         }
 
         stage('Sync') {
+            if (params.LATEST == 'auto')
+                latest = 0 == sh returnStatus: true, script: """#!/bin/bash -ex
+curl -Ls '${api}' | { jq -r .items[].version ; echo '${version}' ; } |
+sort -ruV | head -1 | grep -Fqx '${version}'
+"""  /* Editor quote safety: " */
+
             withCredentials([
                 [$class: 'FileBinding',
                  credentialsId: gsCreds,
@@ -131,8 +144,23 @@ if [ -n '${base}' ]
 then
         cp -r coreos-pages/_os/${base} coreos-pages/_os/${version}
         sed -i -e 's/${base}/${version}/g' coreos-pages/_os/${version}/*.*
+        if ${latest}
+        then
+                git -C coreos-pages rm -fr _os/latest
+                cp -r coreos-pages/_os/${version} coreos-pages/_os/latest
+                sed -i \
+                    -e '/^os-latest: /s/ .*/ ${version}/' \
+                    coreos-pages/_config.yml
+                sed -i \
+                    -e '/^slug: /s/ .*/ docs-list-latest/' \
+                    -e '/^version: /s/ .*/ ${version}/' \
+                    coreos-pages/_os/latest/index.html
+                sed -i \
+                    -e '/^version: /s/ .*/ latest/' \
+                    coreos-pages/_os/latest/*.md
+        fi
 else
-        (cd pages/sync && exec ./sync -p os -r ${version})
+        (cd pages/sync ; exec ./sync -p os -r ${version} ${latest ? '' : '-s'})
 fi
 
 git -C coreos-pages add .
@@ -145,12 +173,14 @@ git -C coreos-pages push -f ${forkUrl} ${branch}
 
     stage('PR') {
         withCredentials([string(credentialsId: loginCreds, variable: 'pat')]) {
-            createPullRequest(token: pat,
-                              upstreamProject: docsProject,
-                              sourceOwner: username,
-                              sourceBranch: branch,
-                              title: "os: sync ${version}",
-                              message: "From: ${env.BUILD_URL}")
+            def url = createPullRequest token: pat,
+                                        upstreamProject: docsProject,
+                                        sourceOwner: username,
+                                        sourceBranch: branch,
+                                        title: "os: sync ${version}",
+                                        message: "From: ${env.BUILD_URL}"
+            slackSend color: '#2020C0',
+                      message: "${version} (${channel}) docs: ${url}"
         }
     }
 }

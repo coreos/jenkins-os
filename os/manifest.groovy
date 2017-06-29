@@ -258,6 +258,47 @@ grep -m1 ^COREOS_VERSION= > current.txt
             def tokens = line.tokenize(" =")
             dprops[tokens[0]] = tokens[1]
         }
+
+        /* Show a summary report for official releases.  */
+        if (dprops.COREOS_OFFICIAL == '1') {
+            withEnv(["MANIFEST_NAME=${dprops.MANIFEST_NAME}",
+                     "MANIFEST_REF=${dprops.MANIFEST_REF.split('/')[-1]}",
+                     "MANIFEST_URL=${profile.MANIFEST_URL}"]) {
+                sh '''#!/bin/bash -ex
+rm -f message.txt
+repos=( coreos/coreos-overlay coreos/portage-stable coreos/scripts )
+
+declare -A new=()
+git -C .repo/manifests checkout "${MANIFEST_REF}"
+for repo in "${repos[@]}"
+do
+        new[${repo}]=$(sed -n 's/.* name="'${repo}'".* revision="\\([^"]*\\)".*/\\1/p' ".repo/manifests/${MANIFEST_NAME}")
+done
+
+declare -A old=()
+git -C .repo/manifests checkout HEAD^
+for repo in "${repos[@]}"
+do
+        old[${repo}]=$(sed -n 's/.* name="'${repo}'".* revision="\\([^"]*\\)".*/\\1/p' ".repo/manifests/${MANIFEST_NAME}")
+done
+
+echo "${MANIFEST_REF#v} - ${BUILD_URL}cldsv" > message.txt
+echo "${MANIFEST_URL%.git}/commit/$(git -C .repo/manifests rev-list --max-count=1 "${MANIFEST_REF}")" >> message.txt
+for repo in "${repos[@]}"
+do
+        [ -z "${new[${repo}]}" -o "x${new[${repo}]}" == "x${old[${repo}]}" ] ||
+        echo "https://github.com/${repo}/compare/${old[${repo}]}...${new[${repo}]}" >> message.txt
+done
+'''  /* Editor quote safety: ' */
+            }
+
+            String summary = readFile('message.txt').trim()
+            try {
+                slackSend color: '#2020C0', message: summary
+            } catch (NoSuchMethodError err) {
+                echo summary
+            }
+        }
     }
 }
 
