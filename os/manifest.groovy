@@ -269,21 +269,21 @@ rm -f message.txt
 repos=( coreos/coreos-overlay coreos/portage-stable coreos/scripts )
 
 declare -A new=()
-git -C .repo/manifests checkout "${MANIFEST_REF}"
+git -C manifest checkout "${MANIFEST_REF}"
 for repo in "${repos[@]}"
 do
-        new[${repo}]=$(sed -n 's/.* name="'${repo}'".* revision="\\([^"]*\\)".*/\\1/p' ".repo/manifests/${MANIFEST_NAME}")
+        new[${repo}]=$(sed -n 's,.* name="'${repo}'".* revision="\\([^"]*\\)".*,\\1,p' "manifest/${MANIFEST_NAME}")
 done
 
 declare -A old=()
-git -C .repo/manifests checkout HEAD^
+git -C manifest checkout HEAD^
 for repo in "${repos[@]}"
 do
-        old[${repo}]=$(sed -n 's/.* name="'${repo}'".* revision="\\([^"]*\\)".*/\\1/p' ".repo/manifests/${MANIFEST_NAME}")
+        old[${repo}]=$(sed -n 's,.* name="'${repo}'".* revision="\\([^"]*\\)".*,\\1,p' "manifest/${MANIFEST_NAME}")
 done
 
 echo "${MANIFEST_REF#v} - ${BUILD_URL}cldsv" > message.txt
-echo "${MANIFEST_URL%.git}/commit/$(git -C .repo/manifests rev-list --max-count=1 "${MANIFEST_REF}")" >> message.txt
+echo "${MANIFEST_URL%.git}/commit/$(git -C manifest rev-list --max-count=1 "${MANIFEST_REF}")" >> message.txt
 for repo in "${repos[@]}"
 do
         [ -z "${new[${repo}]}" -o "x${new[${repo}]}" == "x${old[${repo}]}" ] ||
