@@ -283,11 +283,11 @@ do
 done
 
 echo "${MANIFEST_REF#v} - ${BUILD_URL}cldsv" > message.txt
-echo "${MANIFEST_URL%.git}/commit/$(git -C manifest rev-list --max-count=1 "${MANIFEST_REF}")" >> message.txt
+echo "${MANIFEST_URL%.git}/commit/$(git -C manifest rev-list --max-count=1 "${MANIFEST_REF}" | head -c 10)" >> message.txt
 for repo in "${repos[@]}"
 do
         [ -z "${new[${repo}]}" -o "x${new[${repo}]}" == "x${old[${repo}]}" ] ||
-        echo "https://github.com/${repo}/compare/${old[${repo}]}...${new[${repo}]}" >> message.txt
+        echo "https://github.com/${repo}/compare/${old[${repo}]:0:10}...${new[${repo}]:0:10}" >> message.txt
 done
 '''  /* Editor quote safety: ' */
             }
