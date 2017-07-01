@@ -97,6 +97,9 @@ if (false && params.COREOS_OFFICIAL == '1') {
     UPLOAD_ROOT = params.GS_DEVEL_ROOT
 }
 
+/* Get the list of image formats from the scripts repository.  */
+String format_list = ''
+
 node('coreos && amd64 && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
@@ -130,97 +133,25 @@ node('coreos && amd64 && sudo') {
                          "UPLOAD_ROOT=${UPLOAD_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
-# build may not be started without a ref value
-[[ -n "${MANIFEST_TAG}" ]]
+# The build may not be started without a tag value.
+[ -n "${MANIFEST_TAG}" ]
 
-# set up GPG for verifying tags
+# Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                  --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                  --manifest-name "${MANIFEST_NAME}"
+bin/cork update \
+    --create --downgrade-replace --verify --verify-signature --verbose \
+    --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+    --manifest-name "${MANIFEST_NAME}" \
+    --manifest-url "${MANIFEST_URL}"
 
-# first thing, clear out old images
-sudo rm -rf chroot/build src/build torcx
-
-enter() {
-  sudo ln -f "${GS_DEVEL_CREDS}" chroot/etc/portage/gangue.json
-  [ -s verify.asc ] &&
-  sudo ln -f verify.asc chroot/etc/portage/gangue.asc &&
-  verify_key=--verify-key=/etc/portage/gangue.asc || verify_key=
-  trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
-  ./bin/cork enter --experimental -- env \
-    COREOS_DEV_BUILDS="${DOWNLOAD_ROOT}" \
-    PORTAGE_SSH_OPTS= \
-    {FETCH,RESUME}COMMAND_GS="/usr/bin/gangue get \
---json-key=/etc/portage/gangue.json $verify_key \
-"'"${URI}" "${DISTDIR}/${FILE}"' \
-    "$@"
-}
-
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  enter "${script}" "$@"
-}
-
-sudo cp bin/gangue chroot/usr/bin/gangue  # XXX: until SDK mantle has it
-
-source .repo/manifests/version.txt
-export COREOS_BUILD_ID
-
-# Set up GPG for signing images
-gpg --import "${GPG_SECRET_KEY_FILE}"
-
-script setup_board \
-    --board=${BOARD} \
-    --getbinpkgver="${COREOS_VERSION}" \
-    --regen_configs_only
-
-if [[ "${COREOS_OFFICIAL}" -eq 1 ]]; then
-  script set_official --board=${BOARD} --official
-else
-  script set_official --board=${BOARD} --noofficial
-fi
-
-# Try to find the version's  torcx store, but don't require it
-torcx_store=
-enter gsutil cp -r \
-    "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/torcx" \
-    /mnt/host/source/ &&
-torcx_store=/mnt/host/source/torcx &&
-for image in torcx/*.torcx.tgz
-do
-        gpg --verify "${image}.sig"
-done
-
-# Work around the lack of symlink support in GCS
-shopt -s nullglob
-for default in torcx/*:com.coreos.cl.torcx.tgz
-do
-        for image in torcx/*.torcx.tgz
-        do
-                [ "x${default}" != "x${image}" ] &&
-                cmp --silent -- "${default}" "${image}" &&
-                ln -fns "${image##*/}" "${default}"
-        done
-done
-
-script build_image \
-    --board=${BOARD} \
-    --group=${GROUP} \
-    --getbinpkg \
-    --getbinpkgver="${COREOS_VERSION}" \
-    --sign="${SIGNING_USER}" \
-    --sign_digests="${SIGNING_USER}" \
-    ${torcx_store:+--torcx_store="${torcx_store}"} \
-    --upload_root="${UPLOAD_ROOT}" \
-    --upload prod container
-'''  /* Editor quote safety: ' */
+# Run branch-specific build commands from the scripts repository.
+. src/scripts/jenkins/images.sh
+'''
                 }
             }
         }
@@ -231,6 +162,7 @@ script build_image \
         dir('src/build') {
             deleteDir()
         }
+        format_list = readFile "src/scripts/jenkins/formats-${params.BOARD}.txt"
     }
 }
 
@@ -268,6 +200,7 @@ stage('Downstream') {
                     string(name: 'BOARD', value: params.BOARD),
                     [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                    text(name: 'FORMAT_LIST', value: format_list),
                     string(name: 'GROUP', value: params.GROUP),
                     [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS],
                     string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),

@@ -116,10 +116,10 @@ git -C coreos-pages commit -am 'os: prune old releases' || :
 
         stage('Sync') {
             if (params.LATEST == 'auto')
-                latest = 0 == sh returnStatus: true, script: """#!/bin/bash -ex
+                latest = 0 == sh(returnStatus: true, script: """#!/bin/bash -ex
 curl -Ls '${api}' | { jq -r .items[].version ; echo '${version}' ; } |
 sort -ruV | head -1 | grep -Fqx '${version}'
-"""  /* Editor quote safety: " */
+""")  /* Editor quote safety: " */
 
             withCredentials([
                 [$class: 'FileBinding',

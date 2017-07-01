@@ -36,6 +36,9 @@ properties([
          required: false],
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        text(name: 'FORMAT_LIST',
+             defaultValue: 'pxe qemu_uefi',
+             description: 'Space-separated list of VM image formats to build'),
         string(name: 'GROUP',
                defaultValue: 'developer',
                description: 'Which release group owns this build'),
@@ -89,50 +92,6 @@ used to verify signed files and Git tags'''),
     ])
 ])
 
-/* The VM format list mapping is keyed on ${BOARD}.  */
-def format_map = ['amd64-usr': '''
-ami
-ami_vmdk
-azure
-gce
-iso
-pxe
-qemu
-qemu_uefi
-brightbox
-cloudsigma
-cloudstack
-cloudstack_vhd
-digitalocean
-exoscale
-hyperv
-niftycloud
-openstack
-openstack_mini
-packet
-parallels
-rackspace
-rackspace_onmetal
-rackspace_vhd
-vagrant
-vagrant_parallels
-vagrant_virtualbox
-vagrant_vmware_fusion
-virtualbox
-vmware
-vmware_insecure
-vmware_ova
-vmware_raw
-xen
-''',
-                  'arm64-usr': '''
-openstack
-openstack_mini
-packet
-pxe
-qemu_uefi
-''']
-
 /* Define downstream testing/prerelease builds for specific formats.  */
 def downstreams = [
     'ami_vmdk': { if (params.BOARD == 'amd64-usr')
@@ -184,7 +143,7 @@ def downstreams = [
 def matrix_map = [:]
 
 /* Force this as an ArrayList for serializability, or Jenkins explodes.  */
-ArrayList<String> format_list = format_map[params.BOARD].trim().split('\n')
+ArrayList<String> format_list = params.FORMAT_LIST.split()
 
 for (format in format_list) {
     def FORMAT = format  /* This MUST use fresh variables per iteration.  */
@@ -225,79 +184,25 @@ for (format in format_list) {
                              "UPLOAD_ROOT=${params.GS_RELEASE_ROOT}"]) {
                         sh '''#!/bin/bash -ex
 
-rm -f gce.properties
-sudo rm -rf tmp
+# The build may not be started without a tag value.
+[ -n "${MANIFEST_TAG}" ]
 
-# build may not be started without a ref value
-[[ -n "${MANIFEST_TAG}" ]]
-
-# set up GPG for verifying tags
+# Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-./bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                  --manifest-url "${MANIFEST_URL}" \
-                  --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                  --manifest-name "${MANIFEST_NAME}"
+bin/cork update \
+    --create --downgrade-replace --verify --verify-signature --verbose \
+    --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+    --manifest-name "${MANIFEST_NAME}" \
+    --manifest-url "${MANIFEST_URL}"
 
-enter() {
-  sudo ln -f "${GS_DEVEL_CREDS}" chroot/etc/portage/gangue.json
-  [ -s verify.asc ] &&
-  sudo ln -f verify.asc chroot/etc/portage/gangue.asc &&
-  verify_key=--verify-key=/etc/portage/gangue.asc || verify_key=
-  trap 'sudo rm -f chroot/etc/portage/gangue.*' RETURN
-  ./bin/cork enter --experimental -- env \
-    COREOS_DEV_BUILDS="${GS_DEVEL_ROOT}" \
-    PORTAGE_SSH_OPTS= \
-    {FETCH,RESUME}COMMAND_GS="/usr/bin/gangue get \
---json-key=/etc/portage/gangue.json $verify_key \
-"'"${URI}" "${DISTDIR}/${FILE}"' \
-    "$@"
-}
-
-script() {
-  local script="/mnt/host/source/src/scripts/${1}"; shift
-  enter "${script}" "$@"
-}
-
-sudo cp bin/gangue chroot/usr/bin/gangue  # XXX: until SDK mantle has it
-
-source .repo/manifests/version.txt
-export COREOS_BUILD_ID
-
-# Set up GPG for signing images
-gpg --import "${GPG_SECRET_KEY_FILE}"
-
-[ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
-
-mkdir -p src tmp
-./bin/cork download-image --root="${UPLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
-                          --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-                          --cache-dir=./src \
-                          --platform=qemu \
-                          --verify=true $verify_key
-img=src/coreos_production_image.bin
-if [[ "${img}.bz2" -nt "${img}" ]]; then
-  enter lbunzip2 -k -f "/mnt/host/source/${img}.bz2"
-fi
-
-sudo rm -rf chroot/build
-script image_to_vm.sh --board=${BOARD} \
-                      --format=${FORMAT} \
-                      --prod_image \
-                      --getbinpkg \
-                      --getbinpkgver=${COREOS_VERSION} \
-                      --from=/mnt/host/source/src/ \
-                      --to=/mnt/host/source/tmp/ \
-                      --sign="${SIGNING_USER}" \
-                      --sign_digests="${SIGNING_USER}" \
-                      --download_root="${DOWNLOAD_ROOT}" \
-                      --upload_root="${UPLOAD_ROOT}" \
-                      --upload
-'''  /* Editor quote safety: ' */
+# Run branch-specific build commands from the scripts repository.
+. src/scripts/jenkins/vm.sh
+'''
                     }
                 }
             }
