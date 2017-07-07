@@ -13,10 +13,9 @@ properties([
                description: '''Copy documentation from this release if \
 given, otherwise sync documentation from Git'''),
         choice(name: 'LATEST',
-               choices: "auto\nyes\no",
+               choices: "auto\nyes\nno",
                description: '''Whether to set the "latest" directory \
-to this version, determined by comparing the version to all active \
-versions when using "auto"'''),
+to this version, where "auto" enables it only for "alpha" releases'''),
     ])
 ])
 
@@ -32,7 +31,6 @@ def pagesProject = 'coreos-inc/pages'
 def gitAuthor = 'Jenkins OS'
 def gitEmail = 'team-os@coreos.com'
 
-def api = 'https://public.update.core-os.net/_ah/api/update/v1/public/channels'
 def gcRepo = 'https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64'
 
 /* Generate all of the actual required strings from the above values.  */
@@ -40,7 +38,7 @@ def base = params.BASE_VERSION
 def channel = params.CHANNEL
 def version = params.VERSION
 def branch = "build-${version.split(/\./)[0]}"
-def latest = params.LATEST == 'yes'
+def latest = [auto: channel == 'alpha'].withDefault{it == 'yes'}[params.LATEST]
 
 def forkProject = "${username}/${docsProject.split('/')[-1]}"
 
@@ -115,12 +113,6 @@ git -C coreos-pages commit -am 'os: prune old releases' || :
         }
 
         stage('Sync') {
-            if (params.LATEST == 'auto')
-                latest = 0 == sh(returnStatus: true, script: """#!/bin/bash -ex
-curl -Ls '${api}' | { jq -r .items[].version ; echo '${version}' ; } |
-sort -ruV | head -1 | grep -Fqx '${version}'
-""")  /* Editor quote safety: " */
-
             withCredentials([
                 [$class: 'FileBinding',
                  credentialsId: gsCreds,
