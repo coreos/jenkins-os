@@ -67,6 +67,13 @@
     "MANIFEST_URL": "https://github.com/coreos/manifest.git",
 
     /*
+     * Packet credentials are secret text with permission to run kola
+     * instances in the given project.
+     */
+    "PACKET_CREDS": "d67b5bde-d138-487a-9da3-0f5f5f157310",
+    "PACKET_PROJECT": "9da29e12-d97c-4d6e-b5aa-72174390d57a",
+
+    /*
      * All of the files resulting from the build (OS images, firmware,
      * digests, etc.) are signed with the following GPG key.  The given
      * credentials ID should point to the private key file to be used,

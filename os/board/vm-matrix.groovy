@@ -73,6 +73,14 @@ Google Storage URL, requires write permission''',
                defaultValue: ''),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl',
+                    defaultValue: 'd67b5bde-d138-487a-9da3-0f5f5f157310',
+                    description: 'Credentials to run hosts in PACKET_PROJECT',
+                    name: 'PACKET_CREDS',
+                    required: true),
+        string(name: 'PACKET_PROJECT',
+               defaultValue: '9da29e12-d97c-4d6e-b5aa-72174390d57a',
+               description: 'The Packet project ID to run test machines'),
         [$class: 'CredentialsParameterDefinition',
          credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
          defaultValue: 'buildbot-official.EF4B4ED9.subkey.gpg',
@@ -121,6 +129,22 @@ def downstreams = [
             [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS],
             string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
             string(name: 'VERSION', value: it.version),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'packet': { if (params.BOARD == 'amd64-usr')
+        build job: '../kola/packet', wait: false, parameters: [
+            [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS],
+            [$class: 'CredentialsParameterValue', name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS],
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            [$class: 'CredentialsParameterValue', name: 'PACKET_CREDS', value: params.PACKET_CREDS],
+            string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
+            [$class: 'CredentialsParameterValue', name: 'UPLOAD_CREDS', value: params.GS_DEVEL_CREDS],
+            string(name: 'UPLOAD_ROOT', value: params.GS_DEVEL_ROOT),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
