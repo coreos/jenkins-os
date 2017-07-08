@@ -7,25 +7,21 @@ properties([
         string(name: 'AWS_REGION',
                defaultValue: 'us-west-2',
                description: 'AWS region to use for AMIs and testing'),
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
-         defaultValue: '1bb768fc-940d-4a95-95d0-27c1153e7fa0',
-         description: 'AWS credentials list for AMI creation and releasing',
-         name: 'AWS_RELEASE_CREDS',
-         required: true],
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
-         defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
-         description: 'Credentials with permissions required by "kola run --platform=aws"',
-         name: 'AWS_TEST_CREDS',
-         required: true],
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
-         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-         description: '''Credentials given here must have permission to \
-download release storage files''',
-         name: 'DOWNLOAD_CREDS',
-         required: true],
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: '1bb768fc-940d-4a95-95d0-27c1153e7fa0',
+                    description: 'AWS credentials list for AMI creation and releasing',
+                    name: 'AWS_RELEASE_CREDS',
+                    required: true),
+        credentials(credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
+                    defaultValue: '6d37d17c-503e-4596-9a9b-1ab4373955a9',
+                    description: 'Credentials with permissions required by "kola run --platform=aws"',
+                    name: 'AWS_TEST_CREDS',
+                    required: true),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                    description: 'Credentials to download release files',
+                    name: 'DOWNLOAD_CREDS',
+                    required: true),
         string(name: 'GROUP',
                defaultValue: 'developer',
                description: 'Which release group owns this build'),
@@ -54,12 +50,8 @@ node('amd64') {
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
         withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: params.AWS_RELEASE_CREDS,
-             variable: 'AWS_CREDENTIALS'],
-            [$class: 'FileBinding',
-             credentialsId: params.DOWNLOAD_CREDS,
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            file(credentialsId: params.AWS_RELEASE_CREDS, variable: 'AWS_CREDENTIALS'),
+            file(credentialsId: params.DOWNLOAD_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
         ]) {
             withEnv(["AWS_REGION=${params.AWS_REGION}",
                      "BOARD=amd64-usr",
@@ -112,7 +104,7 @@ stage('Downstream') {
                 string(name: 'AWS_AMI_ID', value: amiprops.HVM_AMI_ID),
                 string(name: 'AWS_AMI_TYPE', value: 'HVM'),
                 string(name: 'AWS_REGION', value: params.AWS_REGION),
-                [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
+                credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },
@@ -121,7 +113,7 @@ stage('Downstream') {
                 string(name: 'AWS_AMI_ID', value: amiprops.PV_AMI_ID),
                 string(name: 'AWS_AMI_TYPE', value: 'PV'),
                 string(name: 'AWS_REGION', value: params.AWS_REGION),
-                [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS],
+                credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }

@@ -4,20 +4,18 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
-         defaultValue: '',
-         description: 'Credential ID for SSH Git clone URLs',
-         name: 'BUILDS_CLONE_CREDS',
-         required: false],
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
-         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-         description: '''Credentials ID for a JSON file passed as the \
-GOOGLE_APPLICATION_CREDENTIALS value for downloading release files from the \
-Google Storage URL, requires read permission''',
-         name: 'DOWNLOAD_CREDS',
-         required: true],
+        credentials(credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
+                    defaultValue: '',
+                    description: 'Credential ID for SSH Git clone URLs',
+                    name: 'BUILDS_CLONE_CREDS',
+                    required: false),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                    description: '''Credentials ID for a JSON file passed as \
+the GOOGLE_APPLICATION_CREDENTIALS value for downloading release files from \
+the Google Storage URL, requires read permission''',
+                    name: 'DOWNLOAD_CREDS',
+                    required: true),
         string(name: 'DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
@@ -49,12 +47,9 @@ node('amd64 && kvm && sudo') {
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
-        sshagent(credentials: [params.BUILDS_CLONE_CREDS],
-                 ignoreMissing: true) {
+        sshagent(credentials: [params.BUILDS_CLONE_CREDS], ignoreMissing: true) {
             withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: params.DOWNLOAD_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                file(credentialsId: params.DOWNLOAD_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
             ]) {
                 withEnv(["BOARD=amd64-usr",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
@@ -69,17 +64,18 @@ enter() {
   bin/cork enter --experimental -- "$@"
 }
 
-# set up GPG for verifying tags
+# Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-bin/cork update --create --downgrade-replace --verify --verify-signature --verbose \
-                --manifest-branch "refs/tags/${MANIFEST_TAG}" \
-                --manifest-name "${MANIFEST_NAME}" \
-                --manifest-url "${MANIFEST_URL}"
+bin/cork update \
+    --create --downgrade-replace --verify --verify-signature --verbose \
+    --manifest-branch "refs/tags/${MANIFEST_TAG}" \
+    --manifest-name "${MANIFEST_NAME}" \
+    --manifest-url "${MANIFEST_URL}"
 source .repo/manifests/version.txt
 
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=

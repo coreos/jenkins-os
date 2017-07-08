@@ -114,9 +114,8 @@ git -C coreos-pages commit -am 'os: prune old releases' || :
 
         stage('Sync') {
             withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: gsCreds,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                file(credentialsId: gsCreds,
+                     variable: 'GOOGLE_APPLICATION_CREDENTIALS')
             ]) {
                 sh """#!/bin/bash -ex
 cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json && chmod 0600 account.json

@@ -112,9 +112,7 @@ node('coreos && amd64 && sudo') {
 
         sshagent([profile.BUILDS_PUSH_CREDS]) {
             withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: profile.SIGNING_CREDS,
-                 variable: 'GPG_SECRET_KEY_FILE']
+                file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
             ]) {
                 /* Work around JENKINS-35230 (broken GIT_* variables).  */
                 withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
@@ -234,9 +232,7 @@ finish "${COREOS_BUILD_ID}"
         /* Dereference a magic word since GCS can't handle symlinks.  */
         if (releaseBase == 'master') {
             withCredentials([
-                [$class: 'FileBinding',
-                 credentialsId: profile.GS_DEVEL_CREDS,
-                 variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+                file(credentialsId: profile.GS_DEVEL_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
             ]) {
                 withEnv(["DEVEL_ROOT=${profile.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
@@ -311,25 +307,25 @@ stage('Downstream') {
                 sleep time: minutes, unit: 'MINUTES'
                 build job: 'board/packages-matrix', parameters: [
                     string(name: 'AWS_REGION', value: profile.AWS_REGION),
-                    [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: profile.AWS_RELEASE_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: profile.AWS_TEST_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: profile.AZURE_CREDS],
+                    credentials(name: 'AWS_RELEASE_CREDS', value: profile.AWS_RELEASE_CREDS),
+                    credentials(name: 'AWS_TEST_CREDS', value: profile.AWS_TEST_CREDS),
+                    credentials(name: 'AZURE_CREDS', value: profile.AZURE_CREDS),
                     string(name: 'BOARD', value: board),
-                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''],
+                    credentials(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
                     string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
                     string(name: 'GROUP', value: profile.GROUP),
-                    [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS],
+                    credentials(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
                     string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
-                    [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS],
+                    credentials(name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS),
                     string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: profile.GS_RELEASE_DOWNLOAD_ROOT),
                     string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
                     string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
                     string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
-                    [$class: 'CredentialsParameterValue', name: 'PACKET_CREDS', value: profile.PACKET_CREDS],
+                    credentials(name: 'PACKET_CREDS', value: profile.PACKET_CREDS),
                     string(name: 'PACKET_PROJECT', value: profile.PACKET_PROJECT),
                     string(name: 'RELEASE_BASE', value: releaseBase),
-                    [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS],
+                    credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: keyring),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
@@ -343,14 +339,14 @@ stage('Downstream') {
         parallel failFast: false,
             sdk: {
                 build job: 'sdk', parameters: [
-                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''],
+                    credentials(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
                     string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
-                    [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS],
+                    credentials(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
                     string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
                     string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
                     string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
-                    [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS],
+                    credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: keyring),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
@@ -359,23 +355,23 @@ stage('Downstream') {
             toolchains: {
                 build job: 'toolchains', parameters: [
                     string(name: 'AWS_REGION', value: profile.AWS_REGION),
-                    [$class: 'CredentialsParameterValue', name: 'AWS_RELEASE_CREDS', value: profile.AWS_RELEASE_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'AWS_TEST_CREDS', value: profile.AWS_TEST_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'AZURE_CREDS', value: profile.AZURE_CREDS],
-                    [$class: 'CredentialsParameterValue', name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''],
+                    credentials(name: 'AWS_RELEASE_CREDS', value: profile.AWS_RELEASE_CREDS),
+                    credentials(name: 'AWS_TEST_CREDS', value: profile.AWS_TEST_CREDS),
+                    credentials(name: 'AZURE_CREDS', value: profile.AZURE_CREDS),
+                    credentials(name: 'BUILDS_CLONE_CREDS', value: profile.BUILDS_CLONE_CREDS ?: ''),
                     string(name: 'COREOS_OFFICIAL', value: dprops.COREOS_OFFICIAL),
                     string(name: 'GROUP', value: profile.GROUP),
-                    [$class: 'CredentialsParameterValue', name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS],
+                    credentials(name: 'GS_DEVEL_CREDS', value: profile.GS_DEVEL_CREDS),
                     string(name: 'GS_DEVEL_ROOT', value: profile.GS_DEVEL_ROOT),
-                    [$class: 'CredentialsParameterValue', name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS],
+                    credentials(name: 'GS_RELEASE_CREDS', value: profile.GS_RELEASE_CREDS),
                     string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: profile.GS_RELEASE_DOWNLOAD_ROOT),
                     string(name: 'GS_RELEASE_ROOT', value: profile.GS_RELEASE_ROOT),
                     string(name: 'MANIFEST_NAME', value: dprops.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
                     string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
-                    [$class: 'CredentialsParameterValue', name: 'PACKET_CREDS', value: profile.PACKET_CREDS],
+                    credentials(name: 'PACKET_CREDS', value: profile.PACKET_CREDS),
                     string(name: 'PACKET_PROJECT', value: profile.PACKET_PROJECT),
-                    [$class: 'CredentialsParameterValue', name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS],
+                    credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: keyring),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
