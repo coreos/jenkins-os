@@ -4,9 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to build'),
         credentials(credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
                     defaultValue: '',
                     description: 'Credential ID for SSH Git clone URLs',
@@ -14,9 +11,7 @@ properties([
                     required: false),
         credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
                     defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-                    description: '''Credentials ID for a JSON file passed as \
-the GOOGLE_APPLICATION_CREDENTIALS value for downloading release files from \
-the Google Storage URL, requires read permission''',
+                    description: 'Credentials for signing GCS download URLs',
                     name: 'DOWNLOAD_CREDS',
                     required: true),
         string(name: 'DOWNLOAD_ROOT',
@@ -28,6 +23,22 @@ the Google Storage URL, requires read permission''',
                defaultValue: ''),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl',
+                    defaultValue: 'd67b5bde-d138-487a-9da3-0f5f5f157310',
+                    description: 'Credentials to run hosts in PACKET_PROJECT',
+                    name: 'PACKET_CREDS',
+                    required: true),
+        string(name: 'PACKET_PROJECT',
+               defaultValue: '9da29e12-d97c-4d6e-b5aa-72174390d57a',
+               description: 'The Packet project ID to run test machines'),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                    description: 'Credentials to upload iPXE scripts',
+                    name: 'UPLOAD_CREDS',
+                    required: true),
+        string(name: 'UPLOAD_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net',
+               description: 'URL prefix where development files are uploaded'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -41,7 +52,7 @@ used to verify signed files and Git tags'''),
 /* The kola step doesn't fail the job, so save the return code separately.  */
 def rc = 0
 
-node('amd64 && kvm && sudo') {
+node('coreos && amd64 && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
               fingerprintArtifacts: true,
@@ -53,24 +64,24 @@ node('amd64 && kvm && sudo') {
         sshagent(credentials: [params.BUILDS_CLONE_CREDS], ignoreMissing: true) {
             withCredentials([
                 file(credentialsId: params.DOWNLOAD_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
+                string(credentialsId: params.PACKET_CREDS, variable: 'PACKET_API_KEY'),
+                file(credentialsId: params.UPLOAD_CREDS, variable: 'UPLOAD_CREDS'),
             ]) {
-                withEnv(["BOARD=${params.BOARD}",
+                withEnv(["BOARD=amd64-usr",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
-                         "MANIFEST_URL=${params.MANIFEST_URL}"]) {
+                         "MANIFEST_URL=${params.MANIFEST_URL}",
+                         "PACKET_PROJECT=${params.PACKET_PROJECT}",
+                         "UPLOAD_ROOT=${params.UPLOAD_ROOT}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
 
-sudo rm -rf *.tap src/scripts/_kola_temp tmp _kola_temp*
-
-enter() {
-  bin/cork enter --experimental -- "$@"
-}
+rm -rf *.tap _kola_temp* url.txt
 
 # Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap 'rm -rf "${GNUPGHOME}"' EXIT
+trap 'rm -rf "${GNUPGHOME}" credentials.json' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
@@ -81,31 +92,26 @@ bin/cork update \
     --manifest-url "${MANIFEST_URL}"
 source .repo/manifests/version.txt
 
-[ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
+timeout=3h
 
-mkdir -p tmp
-bin/cork download-image \
-    --cache-dir=tmp \
-    --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-    --platform=qemu_uefi \
-    --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}" \
-    --verify=true $verify_key
-enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
+set -o pipefail
+ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" credentials.json
+bin/cork enter --experimental -- gsutil signurl -d "${timeout}" \
+    /mnt/host/source/credentials.json \
+    "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/coreos_production_packet_image.bin.bz2" |
+sed -n 's,^.*https://,https://,p' > url.txt
 
-# copy all of the latest mantle binaries into the chroot
-sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
-sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
-sudo cp -t chroot/usr/bin bin/[b-z]*
-
-enter sudo timeout --signal=SIGQUIT 60m kola run \
+timeout --signal=SIGQUIT "${timeout}" bin/kola run \
     --board="${BOARD}" \
-    --parallel=2 \
-    --platform=qemu \
-    --qemu-bios=/mnt/host/source/tmp/coreos_production_qemu_uefi_efi_code.fd \
-    --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
-    --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap"
-
-sudo rm -rf tmp
+    --gce-json-key="${UPLOAD_CREDS}" \
+    --packet-api-key="${PACKET_API_KEY}" \
+    --packet-facility=ewr1 \
+    --packet-image-url="$(<url.txt)" \
+    --packet-project="${PACKET_PROJECT}" \
+    --packet-storage-url="${UPLOAD_ROOT}/mantle/packet" \
+    --parallel=4 \
+    --platform=packet \
+    --tapfile="${JOB_NAME##*/}.tap"
 '''  /* Editor quote safety: ' */
                 }
             }
@@ -130,7 +136,7 @@ sudo rm -rf tmp
               validateNumberOfTests: true,
               verbose: true])
 
-        sh 'tar -C src/scripts -cJf _kola_temp.tar.xz _kola_temp'
+        sh 'tar -cJf _kola_temp.tar.xz _kola_temp'
         archiveArtifacts '_kola_temp.tar.xz'
     }
 }

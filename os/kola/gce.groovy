@@ -4,13 +4,12 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        [$class: 'CredentialsParameterDefinition',
-         credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
-         defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
-         description: '''Credentials given here must have permission to \
-download release storage files, create compute images, and run instances''',
-         name: 'GS_RELEASE_CREDS',
-         required: true],
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
+                    description: '''Credentials given here must have permission \
+to download release storage files, create compute images, and run instances''',
+                    name: 'GS_RELEASE_CREDS',
+                    required: true),
         string(name: 'GS_RELEASE_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
@@ -34,9 +33,7 @@ node('amd64') {
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
         withCredentials([
-            [$class: 'FileBinding',
-             credentialsId: params.GS_RELEASE_CREDS,
-             variable: 'GOOGLE_APPLICATION_CREDENTIALS']
+            file(credentialsId: params.GS_RELEASE_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
         ]) {
             withEnv(["BOARD=amd64-usr",
                      "COREOS_VERSION=${params.VERSION}",
