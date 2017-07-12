@@ -127,6 +127,7 @@ def downstreams = [
     },
     'packet': { if (params.BOARD == 'amd64-usr')
         build job: '../kola/packet', wait: false, parameters: [
+            string(name: 'BOARD', value: params.BOARD),
             credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
             credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
             string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
