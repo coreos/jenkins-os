@@ -81,34 +81,21 @@ EOF
         stage('Prune') {
             sh """#!/bin/bash -ex
 shopt -s nullglob
-declare -A releases
-releases[${version}]=${channel}
+channel=${channel}
+data=coreos-pages/_data/releases-${channel}.yml
+keep=5
+this=coreos-pages/_os/${version}
 """ + '''
-# Use the release buckets to determine the channel for previous releases.
-for release_dir in coreos-pages/_os/[0-9]*.*[0-9]
-do
-        release=${release_dir##*/}
-        releases[${release}]=
-        for channel in stable beta alpha
+# Drop old releases that are in the same channel as this release.
+{
+        echo "${this}"
+        for release in coreos-pages/_os/*
         do
-                board_url="http://${channel}.release.core-os.net/amd64-usr"
-                curl -fIs "${board_url}/${release}/version.txt" &&
-                releases[${release}]=${channel} &&
-                break
+                grep -qxe "-  *version:  *${release##*/}" "${data}" &&
+                echo "${release}"
         done
-done
-
-# Keep five releases from each channel (and drop all releases with no channel).
-declare -A kept
-while read release
-do
-        release_dir="coreos-pages/_os/${release}"
-        [ -z "${releases[${release}]}" ] && rm -fr "${release_dir}" && continue
-        [ "${#kept[${releases[${release}]}]}" -lt 5 ] &&
-        kept[${releases[${release}]}]+=. ||
-        rm -fr "${release_dir}"
-done < <(sort -rV <(IFS=$'\n' ; echo "${!releases[*]}"))
-git -C coreos-pages commit -am 'os: prune old releases' || :
+} | sort -ruV | tail -n +$(( keep + 1 )) | xargs -r rm -fr
+git -C coreos-pages commit -am "os: prune old ${channel} releases" || :
 '''  /* Editor quote safety: ' */
         }
 

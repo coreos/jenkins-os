@@ -4,6 +4,9 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
+        choice(name: 'BOARD',
+               choices: "amd64-usr\narm64-usr",
+               description: 'Target board to build'),
         credentials(credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
                     defaultValue: '',
                     description: 'Credential ID for SSH Git clone URLs',
@@ -67,7 +70,7 @@ node('coreos && amd64 && sudo') {
                 string(credentialsId: params.PACKET_CREDS, variable: 'PACKET_API_KEY'),
                 file(credentialsId: params.UPLOAD_CREDS, variable: 'UPLOAD_CREDS'),
             ]) {
-                withEnv(["BOARD=amd64-usr",
+                withEnv(["BOARD=${params.BOARD}",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
