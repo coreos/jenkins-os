@@ -1,7 +1,7 @@
 #!groovy
 
 /* This schedules with the server's time, which is currently in UTC.  */
-properties([pipelineTriggers([cron('H 9 * * *')])])
+properties([pipelineTriggers([cron('H 8 * * *')])])
 
 /* Build the manifest job with its default parameters (to build master).  */
 stage('Downstream') {
