@@ -81,6 +81,9 @@ node('coreos && amd64 && sudo') {
 
 rm -rf *.tap _kola_temp* url.txt
 
+# JOB_NAME will not fit within the character limit
+NAME="jenkins-${BUILD_NUMBER}"
+
 # Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
@@ -105,6 +108,7 @@ bin/cork enter --experimental -- gsutil signurl -d "${timeout}" \
 sed -n 's,^.*https://,https://,p' > url.txt
 
 timeout --signal=SIGQUIT "${timeout}" bin/kola run \
+    --basename="${NAME}" \
     --board="${BOARD}" \
     --gce-json-key="${UPLOAD_CREDS}" \
     --packet-api-key="${PACKET_API_KEY}" \

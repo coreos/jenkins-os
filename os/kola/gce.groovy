@@ -54,6 +54,7 @@ bin/ore gcloud create-image \
 GCE_NAME="${NAME//[+.]/-}-${COREOS_VERSION//[+.]/-}"
 
 timeout --signal=SIGQUIT 60m bin/kola run \
+    --basename="${NAME}" \
     --gce-image="${GCE_NAME}" \
     --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --parallel=4 \
