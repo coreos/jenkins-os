@@ -34,7 +34,11 @@ ln -fns .. src/scripts
 GCLIENT_ROOT=$PWD ; export GCLIENT_ROOT
 
 # Edit our master branch GLSAs via rsync from upstream.
-./update_ebuilds --nocommit --portage_stable portage-stable metadata/glsa
+./update_ebuilds \
+    --nocommit \
+    --portage=rsync \
+    --portage_stable=portage-stable \
+    metadata/glsa
 
 # Read the type of modifications that were made.
 declare -a added modified other
@@ -103,6 +107,7 @@ exit 0  # Do not return a non-zero $? from above.
         def message = readFile 'notify.txt'
         if (message)
             slackSend color: color ?: '#C0C0C0', message: """${message}
-Run `update_ebuilds --commit metadata/glsa` in the SDK to update GLSAs."""
+Run `update_ebuilds --commit --portage=rsync metadata/glsa` in the SDK to \
+update GLSA definitions."""
     }
 }
