@@ -120,24 +120,24 @@ node('coreos && amd64 && sudo') {
                          "BUILDS_PUSH_URL=${profile.BUILDS_PUSH_URL}",
                          "GIT_AUTHOR_EMAIL=${profile.GIT_AUTHOR_EMAIL}",
                          "GIT_AUTHOR_NAME=${profile.GIT_AUTHOR_NAME}",
-                         'GIT_BRANCH=' + (sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"),
-                         'GIT_COMMIT=' + sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim(),
-                         'GIT_URL=' + sh(returnStdout: true, script: 'git -C manifest remote get-url origin').trim(),
+                         "GIT_BRANCH=${sh(returnStdout: true, script: "git -C manifest tag -l ${params.MANIFEST_REF}").trim() ? params.MANIFEST_REF : "origin/${params.MANIFEST_REF}"}",
+                         "GIT_COMMIT=${sh(returnStdout: true, script: 'git -C manifest rev-parse HEAD').trim()}",
+                         "GIT_URL=${sh(returnStdout: true, script: 'git -C manifest remote get-url origin').trim()}",
                          "LOCAL_MANIFEST=${params.LOCAL_MANIFEST}",
                          "SIGNING_USER=${profile.SIGNING_USER}"]) {
                     sh '''#!/bin/bash -ex
 
 export GIT_SSH_COMMAND="ssh -o StrictHostKeyChecking=no"
+git -C manifest config user.name "${GIT_AUTHOR_NAME}"
+git -C manifest config user.email "${GIT_AUTHOR_EMAIL}"
 
 COREOS_OFFICIAL=0
 
 finish() {
-  local tag="$1"
-  git -C "${WORKSPACE}/manifest" tag -v "${tag}"
-  git -C "${WORKSPACE}/manifest" push \
-    "${BUILDS_PUSH_URL}" \
-    "refs/tags/${tag}:refs/tags/${tag}"
-  tee "${WORKSPACE}/manifest.properties" <<EOF
+        local tag="$1"
+        git -C manifest tag -v "${tag}"
+        git -C manifest push "${BUILDS_PUSH_URL}" "refs/tags/${tag}:refs/tags/${tag}"
+        tee manifest.properties << EOF
 MANIFEST_URL = ${BUILDS_CLONE_URL}
 MANIFEST_REF = refs/tags/${tag}
 MANIFEST_NAME = release.xml
@@ -145,19 +145,20 @@ COREOS_OFFICIAL = ${COREOS_OFFICIAL:-0}
 EOF
 }
 
-# set up GPG for verifying tags
+# Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
-trap "rm -rf '${GNUPGHOME}'" EXIT
+trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
-# Branches are of the form remote-name/branch-name. Tags are just tag-name.
+# Branches are of the form remote-name/branch-name.  Tags are just tag-name.
 # If we have a release tag use it, for branches we need to make a tag.
-if [[ "${GIT_BRANCH}" != */* ]]; then
-  COREOS_OFFICIAL=1
-  finish "${GIT_BRANCH}"
-  exit
+if [[ "${GIT_BRANCH}" != */* ]]
+then
+        COREOS_OFFICIAL=1
+        finish "${GIT_BRANCH}"
+        exit
 fi
 
 MANIFEST_BRANCH="${GIT_BRANCH##*/}"
@@ -167,61 +168,57 @@ MANIFEST_NAME="${MANIFEST_BRANCH}.xml"
 source manifest/version.txt
 export COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}-${BUILD_NUMBER}"
 
-# hack to get repo to set things up using the manifest repo we already have
-# (amazing that it tolerates this considering it usually is so intolerant)
+# Get repo to set things up using the manifest repository we already have.
 mkdir -p .repo
 ln -sfT ../manifest .repo/manifests
 ln -sfT ../manifest/.git .repo/manifests.git
 
-# Cleanup/setup local manifests
+# Cleanup/setup local manifests.
 rm -rf .repo/local_manifests
-if [[ -n "${LOCAL_MANIFEST}" ]]; then
-  mkdir -p .repo/local_manifests
-  cat >.repo/local_manifests/local.xml <<<"${LOCAL_MANIFEST}"
-  COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}+local-${BUILD_NUMBER}"
+if [[ -n "${LOCAL_MANIFEST}" ]]
+then
+        mkdir -p .repo/local_manifests
+        echo "${LOCAL_MANIFEST}" > .repo/local_manifests/local.xml
+        COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}+local-${BUILD_NUMBER}"
 fi
 
-./bin/cork update --create --downgrade-replace --verbose \
-                  --manifest-url "${GIT_URL}" \
-                  --manifest-branch "${GIT_COMMIT}" \
-                  --manifest-name "${MANIFEST_NAME}" \
-                  --new-version "${COREOS_VERSION}" \
-                  --sdk-version "${COREOS_SDK_VERSION}"
+# Initialize an SDK without verifying a manifest tag, since this uses a branch.
+bin/cork update \
+    --create --downgrade-replace --verbose \
+    --manifest-branch "${GIT_COMMIT}" \
+    --manifest-name "${MANIFEST_NAME}" \
+    --manifest-url "${GIT_URL}" \
+    --new-version "${COREOS_VERSION}" \
+    --sdk-version "${COREOS_SDK_VERSION}"
 
-./bin/cork enter --experimental -- sh -c \
-  "cd /mnt/host/source; repo manifest -r > '/mnt/host/source/manifest/${COREOS_BUILD_ID}.xml'"
+bin/cork enter --experimental -- sh -exc \
+    "cd /mnt/host/source && repo manifest -r > 'manifest/${COREOS_BUILD_ID}.xml'"
 
-cd manifest
-git add "${COREOS_BUILD_ID}.xml"
+ln -fns "${COREOS_BUILD_ID}.xml" manifest/default.xml
+ln -fns "${COREOS_BUILD_ID}.xml" manifest/release.xml
 
-ln -sf "${COREOS_BUILD_ID}.xml" default.xml
-ln -sf "${COREOS_BUILD_ID}.xml" release.xml
-git add default.xml release.xml
-
-tee version.txt <<EOF
+tee manifest/version.txt << EOF
 COREOS_VERSION=${COREOS_VERSION_ID}+${COREOS_BUILD_ID}
 COREOS_VERSION_ID=${COREOS_VERSION_ID}
 COREOS_BUILD_ID=${COREOS_BUILD_ID}
 COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
-git add version.txt
 
-# Set up GPG for signing tags
+# Set up GPG for signing tags.
 gpg --import "${GPG_SECRET_KEY_FILE}"
 
-GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
-GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
-export GIT_COMMITTER_EMAIL GIT_COMMITTER_NAME
-git commit \
-  -m "${COREOS_BUILD_ID}: add build manifest" \
-  -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
-  -m "${BUILD_URL}"
-git tag -u "${SIGNING_USER}" -m "${COREOS_BUILD_ID}" "${COREOS_BUILD_ID}" HEAD
+# Tag a development build manifest.
+git -C manifest add "${COREOS_BUILD_ID}.xml" default.xml release.xml version.txt
+git -C manifest commit \
+    -m "${COREOS_BUILD_ID}: add build manifest" \
+    -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
+    -m "${BUILD_URL}"
+git -C manifest tag -u "${SIGNING_USER}" -m "${COREOS_BUILD_ID}" "${COREOS_BUILD_ID}"
 
-# assert that what we just did will work, update symlink because verify doesn't have a --manifest-name option yet
-cd "${WORKSPACE}"
-ln -sf "manifests/${COREOS_BUILD_ID}.xml" .repo/manifest.xml
-./bin/cork verify
+# Assert that what we just did will work by updating the symlink because verify
+# doesn't have a --manifest-name option yet.
+ln -fns "manifests/${COREOS_BUILD_ID}.xml" .repo/manifest.xml
+bin/cork verify
 
 finish "${COREOS_BUILD_ID}"
 '''  /* Editor quote safety: ' */
