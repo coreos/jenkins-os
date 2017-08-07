@@ -1,0 +1,10 @@
+/*
+ * This profile is used when building private alpha releases.
+ */
+{
+    "PARENT": "embargoed",
+    "AWS_RELEASE_CREDS": "d919f31a-22a4-4272-a5d2-67b6d9555209",
+    "GROUP": "alpha",
+    "GS_RELEASE_DOWNLOAD_ROOT": "https://alpha.release.core-os.net",
+    "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/alpha",
+}
