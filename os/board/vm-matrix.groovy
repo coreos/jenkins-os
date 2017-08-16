@@ -95,7 +95,7 @@ used to verify signed files and Git tags'''),
 
 /* Define downstream testing/prerelease builds for specific formats.  */
 def downstreams = [
-    'ami_vmdk': { if (params.BOARD == 'amd64-usr')
+    'ami': { if (params.BOARD == 'amd64-usr')
         build job: '../prerelease/aws', wait: false, parameters: [
             string(name: 'AWS_REGION', value: params.AWS_REGION),
             credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
