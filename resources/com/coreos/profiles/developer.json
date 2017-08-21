@@ -79,8 +79,8 @@
      * credentials ID should point to the private key file to be used,
      * and the e-mail address identifies it to the GPG command.
      */
-    "SIGNING_CREDS": "buildbot-official.1CB5FA26.subkey.gpg",
-    "SIGNING_USER": "0x1CB5FA26!",
+    "SIGNING_CREDS": "buildbot-official.EF4B4ED9.subkey.gpg",
+    "SIGNING_USER": "0xEF4B4ED9!",
 
     /*
      * A GPG keyring must be given to verify signed objects throughout
