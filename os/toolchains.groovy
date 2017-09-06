@@ -80,6 +80,9 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
+        string(name: 'TECTONIC_TORCX_DOWNLOAD_ROOT',
+               defaultValue: 'http://builds.developer.core-os.net/torcx',
+               description: 'URL prefix where tectonic torcx packages are downloaded'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -175,6 +178,7 @@ stage('Downstream') {
                 string(name: 'RELEASE_BASE', value: ''),
                 credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                 string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+                string(name: 'TECTONIC_TORCX_DOWNLOAD_ROOT', value: params.TECTONIC_TORCX_DOWNLOAD_ROOT),
                 text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
