@@ -1,0 +1,38 @@
+/*
+ * This profile builds private testing and development images.
+ */
+{
+    "AWS_REGION": "us-west-2",
+    "AWS_RELEASE_CREDS": "1bb768fc-940d-4a95-95d0-27c1153e7fa0",
+    "AWS_TEST_CREDS": "6d37d17c-503e-4596-9a9b-1ab4373955a9",
+
+    "AZURE_CREDS": "7ab88376-e794-4128-b644-41c83c89e76d",
+
+    "BUILD_ID_PREFIX": "jenkins2-",
+
+    "BUILDS_CLONE_URL": "ssh://core@52.37.67.219/~/manifest-builds.git",
+    "BUILDS_CLONE_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
+    "BUILDS_PUSH_URL": "ssh://core@52.37.67.219/~/manifest-builds.git",
+    "BUILDS_PUSH_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
+
+    "GIT_AUTHOR_EMAIL": "jenkins@jenkins-os.prod.coreos.systems",
+    "GIT_AUTHOR_NAME": "CoreOS Jenkins",
+
+    "GROUP": "developer",
+
+    "GS_DEVEL_ROOT": "gs://builds.release.core-os.net/embargoed/devfiles",
+    "GS_DEVEL_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
+    "GS_RELEASE_DOWNLOAD_ROOT": "gs://builds.release.core-os.net/embargoed/developer",
+    "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/embargoed/developer",
+    "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
+
+    "MANIFEST_URL": "ssh://core@52.37.67.219/~/manifest.git",
+
+    "PACKET_CREDS": "d67b5bde-d138-487a-9da3-0f5f5f157310",
+    "PACKET_PROJECT": "9da29e12-d97c-4d6e-b5aa-72174390d57a",
+
+    "SIGNING_CREDS": "buildbot-official.EF4B4ED9.subkey.gpg",
+    "SIGNING_USER": "0xEF4B4ED9!",
+
+    "VERIFY_KEYRING": "artifact:/os/keyring:keyring.asc",
+}
