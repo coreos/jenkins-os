@@ -324,6 +324,8 @@ stage('Downstream') {
                     string(name: 'RELEASE_BASE', value: releaseBase),
                     credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                    string(name: 'TECTONIC_TORCX_DOWNLOAD_ROOT', value: profile.TECTONIC_TORCX_DOWNLOAD_ROOT),
+                    string(name: 'TORCX_PKG_DOWNLOAD_ROOT', value: profile.TORCX_PKG_DOWNLOAD_ROOT),
                     text(name: 'VERIFY_KEYRING', value: keyring),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
@@ -370,6 +372,8 @@ stage('Downstream') {
                     string(name: 'PACKET_PROJECT', value: profile.PACKET_PROJECT),
                     credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
+                    string(name: 'TECTONIC_TORCX_DOWNLOAD_ROOT', value: profile.TECTONIC_TORCX_DOWNLOAD_ROOT),
+                    string(name: 'TORCX_PKG_DOWNLOAD_ROOT', value: profile.TORCX_PKG_DOWNLOAD_ROOT),
                     text(name: 'VERIFY_KEYRING', value: keyring),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]

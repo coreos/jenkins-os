@@ -26,6 +26,9 @@
     "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/embargoed/developer",
     "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
 
+    "TECTONIC_TORCX_DOWNLOAD_ROOT": "gs://builds.release.core-os.net/embargoed/developer/torcx",
+    "TORCX_PKG_DOWNLOAD_ROOT": "gs://builds.release.core-os.net/embargoed/developer/torcx",
+
     "MANIFEST_URL": "ssh://core@52.37.67.219/~/manifest.git",
 
     "PACKET_CREDS": "d67b5bde-d138-487a-9da3-0f5f5f157310",
