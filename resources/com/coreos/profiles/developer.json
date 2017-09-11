@@ -61,16 +61,6 @@
     "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
 
     /*
-     * URLs from which to download torcx packages are embedded in torcx manifests.
-     * The "TECTONIC_TORCX_DOWNLOAD_ROOT" variable is that URL from which users may
-     * eventually download built torcx packages.
-     * The second, TORCX_PKG_DOWNLOAD_ROOT, is the location used by this
-     * jenkins to upload and download packages during torcx package and image build.
-     */
-    "TECTONIC_TORCX_DOWNLOAD_ROOT": "http://builds.developer.core-os.net/torcx",
-    "TORCX_PKG_DOWNLOAD_ROOT": "gs://builds.developer.core-os.net/torcx",
-
-    /*
      * This is the URL cloned by the os/manifest job to read the base
      * manifest files that define the OS build.
      */
@@ -91,6 +81,15 @@
      */
     "SIGNING_CREDS": "buildbot-official.EF4B4ED9.subkey.gpg",
     "SIGNING_USER": "0xEF4B4ED9!",
+
+    /*
+     * The torcx manifests specify URLs from which to download torcx
+     * packages, prefixed with the TORCX_PUBLIC_DOWNLOAD_ROOT variable.
+     * The TORCX_ROOT variable is the location in Google Storage to
+     * upload and download packages during the build.
+     */
+    "TORCX_PUBLIC_DOWNLOAD_ROOT": "http://builds.developer.core-os.net/torcx",
+    "TORCX_ROOT": "gs://builds.developer.core-os.net/torcx",
 
     /*
      * A GPG keyring must be given to verify signed objects throughout

@@ -80,9 +80,9 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
-        string(name: 'TORCX_PKG_DOWNLOAD_ROOT',
-               defaultValue: 'gs://builds.developer.core-os.net',
-               description: 'URL from which tectonic torcx pkgs are downloaded by jenkins'),
+        string(name: 'TORCX_ROOT',
+               defaultValue: 'gs://builds.developer.core-os.net/torcx',
+               description: 'Base gs:// URL of torcx packages and manifests'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -127,7 +127,7 @@ node('coreos && amd64 && sudo') {
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "SIGNING_USER=${params.SIGNING_USER}",
-                         "TORCX_PKG_DOWNLOAD_ROOT=${params.TORCX_PKG_DOWNLOAD_ROOT}",
+                         "TORCX_PKG_DOWNLOAD_ROOT=${params.TORCX_ROOT}",
                          "UPLOAD_ROOT=${UPLOAD_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 

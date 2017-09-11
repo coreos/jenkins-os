@@ -7,6 +7,6 @@
     "GROUP": "alpha",
     "GS_RELEASE_DOWNLOAD_ROOT": "https://alpha.release.core-os.net",
     "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/alpha",
-    "TECTONIC_TORCX_DOWNLOAD_ROOT": "https://tectonic-torcx.release.core-os.net",
-    "TORCX_PKG_DOWNLOAD_ROOT": "gs://coreos-tectonic-torcx",
+    "TORCX_PUBLIC_DOWNLOAD_ROOT": "https://tectonic-torcx.release.core-os.net",
+    "TORCX_ROOT": "gs://coreos-tectonic-torcx",
 }
