@@ -28,6 +28,9 @@ the Google Storage URL, requires read permission''',
                defaultValue: ''),
         string(name: 'MANIFEST_URL',
                defaultValue: 'https://github.com/coreos/manifest-builds.git'),
+        text(name: 'TORCX_MANIFEST',
+             defaultValue: '',
+             description: 'Contents of the torcx manifest for kola tests'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -48,6 +51,7 @@ node('amd64 && kvm && sudo') {
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
+        writeFile file: 'torcx_manifest.json', text: params.TORCX_MANIFEST ?: ''
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
         sshagent(credentials: [params.BUILDS_CLONE_CREDS], ignoreMissing: true) {
@@ -103,7 +107,8 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --platform=qemu \
     --qemu-bios=/mnt/host/source/tmp/coreos_production_qemu_uefi_efi_code.fd \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
-    --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap"
+    --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap" \
+    --torcx-manifest=/mnt/host/source/torcx_manifest.json
 
 sudo rm -rf tmp
 '''  /* Editor quote safety: ' */

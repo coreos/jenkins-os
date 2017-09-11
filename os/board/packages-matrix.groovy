@@ -83,12 +83,12 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
-        string(name: 'TECTONIC_TORCX_DOWNLOAD_ROOT',
+        string(name: 'TORCX_PUBLIC_DOWNLOAD_ROOT',
                defaultValue: 'http://builds.developer.core-os.net/torcx',
-               description: 'URL prefix where tectonic torcx pkgs are downloaded by users'),
-        string(name: 'TORCX_PKG_DOWNLOAD_ROOT',
+               description: 'URL prefix where torcx packages are available to end users'),
+        string(name: 'TORCX_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net/torcx',
-               description: 'URL prefix where tectonic torcx pkgs are downloaded by jenkins'),
+               description: 'Base gs:// URL of torcx packages and manifests'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -121,8 +121,8 @@ node('coreos && amd64 && sudo') {
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "RELEASE_BASE=${params.RELEASE_BASE}",
                          "SIGNING_USER=${params.SIGNING_USER}",
-                         "TECTONIC_TORCX_DOWNLOAD_ROOT=${params.TECTONIC_TORCX_DOWNLOAD_ROOT}",
-                         "TORCX_PKG_DOWNLOAD_ROOT=${params.TORCX_PKG_DOWNLOAD_ROOT}",
+                         "TECTONIC_TORCX_DOWNLOAD_ROOT=${params.TORCX_PUBLIC_DOWNLOAD_ROOT}",
+                         "TORCX_PKG_DOWNLOAD_ROOT=${params.TORCX_ROOT}",
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
@@ -178,7 +178,7 @@ stage('Downstream') {
         string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
         credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
         string(name: 'SIGNING_USER', value: params.SIGNING_USER),
-        string(name: 'TORCX_PKG_DOWNLOAD_ROOT', value: params.TORCX_PKG_DOWNLOAD_ROOT),
+        string(name: 'TORCX_ROOT', value: params.TORCX_ROOT),
         text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
     ]

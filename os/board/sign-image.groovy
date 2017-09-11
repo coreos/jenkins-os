@@ -78,6 +78,9 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
+        text(name: 'TORCX_MANIFEST',
+             defaultValue: '',
+             description: 'Contents of the torcx manifest for kola tests'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -234,6 +237,7 @@ stage('Downstream') {
         string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
         credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
         string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+        text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
         text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
         string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
     ]

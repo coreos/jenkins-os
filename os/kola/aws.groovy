@@ -17,6 +17,9 @@ properties([
                     description: 'Credentials with permissions required by "kola run --platform=aws"',
                     name: 'AWS_TEST_CREDS',
                     required: true),
+        text(name: 'TORCX_MANIFEST',
+             defaultValue: '',
+             description: 'Contents of the torcx manifest for kola tests'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -32,6 +35,8 @@ node('amd64') {
               fingerprintArtifacts: true,
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
+
+        writeFile file: 'torcx_manifest.json', text: params.TORCX_MANIFEST ?: ''
 
         withCredentials([
             [$class: 'AmazonWebServicesCredentialsBinding',
@@ -60,7 +65,8 @@ timeout --signal=SIGQUIT 60m bin/kola run \
     --aws-region="${AWS_REGION}" \
     --aws-type="${instance_type}" \
     --platform=aws \
-    --tapfile="${JOB_NAME##*/}.tap"
+    --tapfile="${JOB_NAME##*/}.tap" \
+    --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
             }
         }
