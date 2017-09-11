@@ -83,6 +83,9 @@ Google Storage URL, requires write permission''',
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
+        text(name: 'TORCX_MANIFEST',
+             defaultValue: '',
+             description: 'Contents of the torcx manifest for kola tests'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -102,6 +105,7 @@ def downstreams = [
             credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
             credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
             string(name: 'GROUP', value: params.GROUP),
+            text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
             string(name: 'VERSION', value: it.version),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
@@ -121,6 +125,7 @@ def downstreams = [
         build job: '../kola/gce', wait: false, parameters: [
             credentials(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
             string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+            text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
             string(name: 'VERSION', value: it.version),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
@@ -136,6 +141,7 @@ def downstreams = [
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             credentials(name: 'PACKET_CREDS', value: params.PACKET_CREDS),
             string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
+            text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
             credentials(name: 'UPLOAD_CREDS', value: params.GS_DEVEL_CREDS),
             string(name: 'UPLOAD_ROOT', value: params.GS_DEVEL_ROOT),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
@@ -151,6 +157,7 @@ def downstreams = [
             string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
             string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]

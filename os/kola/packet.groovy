@@ -34,6 +34,9 @@ properties([
         string(name: 'PACKET_PROJECT',
                defaultValue: '9da29e12-d97c-4d6e-b5aa-72174390d57a',
                description: 'The Packet project ID to run test machines'),
+        text(name: 'TORCX_MANIFEST',
+             defaultValue: '',
+             description: 'Contents of the torcx manifest for kola tests'),
         credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
                     defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                     description: 'Credentials to upload iPXE scripts',
@@ -62,6 +65,7 @@ node('coreos && amd64 && sudo') {
               projectName: '/mantle/master-builder',
               selector: [$class: 'StatusBuildSelector', stable: false]])
 
+        writeFile file: 'torcx_manifest.json', text: params.TORCX_MANIFEST ?: ''
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
         sshagent(credentials: [params.BUILDS_CLONE_CREDS], ignoreMissing: true) {
@@ -118,7 +122,8 @@ timeout --signal=SIGQUIT "${timeout}" bin/kola run \
     --packet-storage-url="${UPLOAD_ROOT}/mantle/packet" \
     --parallel=4 \
     --platform=packet \
-    --tapfile="${JOB_NAME##*/}.tap"
+    --tapfile="${JOB_NAME##*/}.tap" \
+    --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
                 }
             }

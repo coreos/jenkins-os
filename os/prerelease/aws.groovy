@@ -25,6 +25,9 @@ properties([
         string(name: 'GROUP',
                defaultValue: 'developer',
                description: 'Which release group owns this build'),
+        text(name: 'TORCX_MANIFEST',
+             defaultValue: '',
+             description: 'Contents of the torcx manifest for kola tests'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
@@ -105,6 +108,7 @@ stage('Downstream') {
                 string(name: 'AWS_AMI_TYPE', value: 'HVM'),
                 string(name: 'AWS_REGION', value: params.AWS_REGION),
                 credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
+                string(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },
@@ -114,6 +118,7 @@ stage('Downstream') {
                 string(name: 'AWS_AMI_TYPE', value: 'PV'),
                 string(name: 'AWS_REGION', value: params.AWS_REGION),
                 credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
+                string(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         }

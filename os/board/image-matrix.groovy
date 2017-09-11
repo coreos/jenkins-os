@@ -104,6 +104,9 @@ if (false && params.COREOS_OFFICIAL == '1') {
 /* Get the list of image formats from the scripts repository.  */
 String format_list = ''
 
+/* Read the torcx manifest file, if one is used.  */
+String torcxManifest = ''
+
 node('coreos && amd64 && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
@@ -161,6 +164,12 @@ bin/cork update \
             deleteDir()
         }
         format_list = readFile "src/scripts/jenkins/formats-${params.BOARD}.txt"
+        try {
+            torcxManifest = readFile 'torcx/torcx_manifest.json'
+        } catch (e) {
+            // Drop this exception after 1520 is stable.
+            echo "Reading the torcx manifest failed, ignoring: ${e}"
+        }
     }
 }
 
@@ -188,6 +197,7 @@ stage('Downstream') {
                     string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
                     credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+                    text(name: 'TORCX_MANIFEST', value: torcxManifest),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
@@ -214,6 +224,7 @@ stage('Downstream') {
                     string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
                     credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+                    text(name: 'TORCX_MANIFEST', value: torcxManifest),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
@@ -227,6 +238,7 @@ stage('Downstream') {
                     string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
                     string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
                     string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                    text(name: 'TORCX_MANIFEST', value: torcxManifest),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
