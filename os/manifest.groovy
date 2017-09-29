@@ -27,7 +27,7 @@ be released quickly.'''),
         text(name: 'LOCAL_MANIFEST',
              defaultValue: '',
              description: """Amend the checked in manifest\n
-https://zifnab.net/~zifnab/wiki_dump/Doc%3A_Using_manifests%2Cen.html#The_local_manifest"""),
+https://undocumented.software/wiki_dump/Doc%3A_Using_manifests%2Cen.html#The_local_manifest"""),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
