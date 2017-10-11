@@ -68,6 +68,8 @@ timeout --signal=SIGQUIT 60m bin/kola run \
     --tapfile="${JOB_NAME##*/}.tap" \
     --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/aws-latest/reports/report.json | paste -sd "," -'''
             }
         }
     }
@@ -97,3 +99,7 @@ timeout --signal=SIGQUIT 60m bin/kola run \
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'danger',
+              message: "```Kola: AWS-amd64-$AWS_AMI_TYPE Failure: <$BUILD_URL|Build> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"

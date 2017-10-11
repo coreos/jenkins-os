@@ -117,6 +117,8 @@ if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
                   "${DOWNLOAD_ROOT}/boards/${BOARD}/current-master/version.txt"
 fi
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/qemu-latest/reports/report.json | paste -sd "," -'''
                 }
             }
         }
@@ -147,3 +149,7 @@ fi
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'danger',
+              message: "```Kola: QEMU-amd64 Failure: <$BUILD_URL|Build> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
