@@ -65,8 +65,11 @@ timeout --signal=SIGQUIT 60m bin/kola run \
     --parallel=4 \
     --platform=gce \
     --tapfile="${JOB_NAME##*/}.tap" \
-    --torcx-manifest=torcx_manifest.json
+    --torcx-manifest=torcx_manifest.json | tee test.output
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''awk 'BEGIN{line=""} /--- FAIL: (.*) \\([0-9\\.]+s\\)/{if(line!=""){print line};flag=1;print $0;next}/([:space:]*[-=]{3})|((PASS)|(FAIL), output in)/{flag=0}flag {line=$0} END{print line}' < test.output'''
+
             }
         }
     }
@@ -96,3 +99,7 @@ timeout --signal=SIGQUIT 60m bin/kola run \
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'bad',
+              message: "```Kola: GCE-amd64 Failure:\n$message```"
