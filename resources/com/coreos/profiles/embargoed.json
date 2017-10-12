@@ -10,9 +10,9 @@
 
     "BUILD_ID_PREFIX": "jenkins2-",
 
-    "BUILDS_CLONE_URL": "ssh://core@52.37.67.219/~/manifest-builds.git",
+    "BUILDS_CLONE_URL": "ssh://core@35.203.146.145/coreos/manifest-builds.git",
     "BUILDS_CLONE_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
-    "BUILDS_PUSH_URL": "ssh://core@52.37.67.219/~/manifest-builds.git",
+    "BUILDS_PUSH_URL": "ssh://core@35.203.146.145/coreos/manifest-builds.git",
     "BUILDS_PUSH_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
 
     "GIT_AUTHOR_EMAIL": "jenkins@jenkins-os.prod.coreos.systems",
@@ -26,7 +26,7 @@
     "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/embargoed/developer",
     "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
 
-    "MANIFEST_URL": "ssh://core@52.37.67.219/~/manifest.git",
+    "MANIFEST_URL": "ssh://core@35.203.146.145/coreos/manifest.git",
 
     "PACKET_CREDS": "d67b5bde-d138-487a-9da3-0f5f5f157310",
     "PACKET_PROJECT": "9da29e12-d97c-4d6e-b5aa-72174390d57a",
