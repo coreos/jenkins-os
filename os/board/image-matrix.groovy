@@ -107,6 +107,9 @@ String format_list = ''
 /* Read the torcx manifest file, if one is used.  */
 String torcxManifest = ''
 
+/* Read the version to skip fetching the manifest in downstream jobs.  */
+String version = ''
+
 node('coreos && amd64 && sudo') {
     stage('Build') {
         step([$class: 'CopyArtifact',
@@ -160,6 +163,7 @@ bin/cork update \
 
     stage('Post-build') {
         fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/${params.BOARD}/latest/*"
+        version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt", returnStdout: true).trim()
         dir('src/build') {
             deleteDir()
         }
@@ -226,6 +230,17 @@ stage('Downstream') {
                     string(name: 'SIGNING_USER', value: params.SIGNING_USER),
                     text(name: 'TORCX_MANIFEST', value: torcxManifest),
                     text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+                ]
+        },
+        'kola-dev-container': {
+            if (params.BOARD == 'amd64-usr')
+                build job: '../kola/dev-container', propagate: false, parameters: [
+                    string(name: 'BOARD', value: params.BOARD),
+                    credentials(name: 'DOWNLOAD_CREDS', value: UPLOAD_CREDS),
+                    string(name: 'DOWNLOAD_ROOT', value: UPLOAD_ROOT),
+                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+                    string(name: 'VERSION', value: version),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
                 ]
         },
