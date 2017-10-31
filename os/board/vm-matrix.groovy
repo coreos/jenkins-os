@@ -32,6 +32,11 @@ properties([
                     required: false),
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: '787e229d-0941-4f04-aba5-9e5f22fe1c71',
+                    description: 'Credentials to create DigitalOcean droplets',
+                    name: 'DIGITALOCEAN_CREDS',
+                    required: true),
         text(name: 'FORMAT_LIST',
              defaultValue: 'pxe qemu_uefi',
              description: 'Space-separated list of VM image formats to build'),
@@ -118,6 +123,21 @@ def downstreams = [
             string(name: 'GROUP', value: params.GROUP),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
             string(name: 'VERSION', value: it.version),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+    },
+    'digitalocean': { if (params.BOARD == 'amd64-usr')
+        build job: '../kola/do', wait: false, parameters: [
+            string(name: 'BOARD', value: params.BOARD),
+            credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+            credentials(name: 'DIGITALOCEAN_CREDS', value: params.DIGITALOCEAN_CREDS),
+            credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+            text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },

@@ -36,6 +36,11 @@ properties([
         choice(name: 'COREOS_OFFICIAL',
                choices: "0\n1"),
         credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: '787e229d-0941-4f04-aba5-9e5f22fe1c71',
+                    description: 'Credentials to create DigitalOcean droplets',
+                    name: 'DIGITALOCEAN_CREDS',
+                    required: true),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
                     defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                     description: '''Credentials ID for a JSON file passed as \
 the GOOGLE_APPLICATION_CREDENTIALS value for uploading development files to \
@@ -184,6 +189,7 @@ stage('Downstream') {
                     credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
                     string(name: 'BOARD', value: params.BOARD),
                     credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                    credentials(name: 'DIGITALOCEAN_CREDS', value: params.DIGITALOCEAN_CREDS),
                     string(name: 'GROUP', value: params.GROUP),
                     credentials(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
                     string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
@@ -210,6 +216,7 @@ stage('Downstream') {
                     string(name: 'BOARD', value: params.BOARD),
                     credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                     string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+                    credentials(name: 'DIGITALOCEAN_CREDS', value: params.DIGITALOCEAN_CREDS),
                     text(name: 'FORMAT_LIST', value: format_list),
                     string(name: 'GROUP', value: params.GROUP),
                     credentials(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
