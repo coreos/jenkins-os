@@ -88,11 +88,9 @@ bin/cork update \
     --manifest-url "${MANIFEST_URL}"
 source .repo/manifests/version.txt
 
-timeout=30m
-
 set -o pipefail
 ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" credentials.json
-bin/cork enter --experimental -- gsutil signurl -d "${timeout}" \
+bin/cork enter --experimental -- gsutil signurl -d 30m \
     /mnt/host/source/credentials.json \
     "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/coreos_production_digitalocean_image.bin.bz2" |
 sed -n 's,^.*https://,https://,p' > url.txt
@@ -102,7 +100,7 @@ bin/ore do create-image \
     --name="${NAME}" \
     --url="$(<url.txt)"
 
-timeout --signal=SIGQUIT "${timeout}" bin/kola run \
+timeout --signal=SIGQUIT 60m bin/kola run \
     --basename="${NAME}" \
     --do-config-file="${DIGITALOCEAN_CREDS}" \
     --do-image="${NAME}" \
