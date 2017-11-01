@@ -99,6 +99,10 @@ bin/ore do create-image \
     --config-file="${DIGITALOCEAN_CREDS}" \
     --name="${NAME}" \
     --url="$(<url.txt)"
+rm -rf "${GNUPGHOME}" credentials.json
+trap 'bin/ore do delete-image \
+    --name="jenkins-${BUILD_NUMBER}" \
+    --config-file="${DIGITALOCEAN_CREDS}"' EXIT
 
 timeout --signal=SIGQUIT 60m bin/kola run \
     --basename="${NAME}" \
@@ -132,13 +136,6 @@ timeout --signal=SIGQUIT 60m bin/kola run \
               validateNumberOfTests: true,
               verbose: true])
 
-        withCredentials([
-            file(credentialsId: params.DIGITALOCEAN_CREDS, variable: 'DIGITALOCEAN_CREDS'),
-        ]) {
-            sh 'bin/ore do delete-image \
-                --name="jenkins-${BUILD_NUMBER}" \
-                --config-file="${DIGITALOCEAN_CREDS}"'
-        }
         sh 'tar -cJf _kola_temp.tar.xz _kola_temp'
         archiveArtifacts '_kola_temp.tar.xz'
     }
