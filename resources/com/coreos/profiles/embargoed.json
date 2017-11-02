@@ -15,6 +15,8 @@
     "BUILDS_PUSH_URL": "ssh://core@35.197.82.132/coreos/manifest-builds.git",
     "BUILDS_PUSH_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
 
+    "DIGITALOCEAN_CREDS": "787e229d-0941-4f04-aba5-9e5f22fe1c71",
+
     "GIT_AUTHOR_EMAIL": "jenkins@jenkins-os.prod.coreos.systems",
     "GIT_AUTHOR_NAME": "CoreOS Jenkins",
 

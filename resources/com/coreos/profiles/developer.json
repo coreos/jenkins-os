@@ -37,6 +37,12 @@
     "BUILDS_PUSH_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
 
     /*
+     * DigitalOcean credentials are a secret file in the format expected
+     * by kola.
+     */
+    "DIGITALOCEAN_CREDS": "787e229d-0941-4f04-aba5-9e5f22fe1c71",
+
+    /*
      * When creating build commits in the manifest-builds repository,
      * these values will be used for the author and committer.
      */
