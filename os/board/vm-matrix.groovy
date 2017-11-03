@@ -97,7 +97,9 @@ Google Storage URL, requires write permission''',
 used to verify signed files and Git tags'''),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
-               description: 'Branch to use for fetching the pipeline jobs')
+               description: 'Branch to use for fetching the pipeline jobs'),
+        choice(name: 'HAVE_ARM64_NODE',
+               choices: "1\n0")
     ])
 ])
 
@@ -178,6 +180,18 @@ def downstreams = [
             string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
             string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
+            text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+            string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+        ]
+        if (params.BOARD == 'arm64-usr' && params.HAVE_ARM64_NODE == '1')
+        build job: '../kola/arm64_qemu_uefi', wait: false, parameters: [
+            string(name: 'BOARD', value: params.BOARD),
+            credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+            credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
+            string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+            string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+            string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+            string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
             text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
