@@ -64,7 +64,8 @@ sudo systemd-nspawn \
     /bin/bash -eux << 'EOF'
 emerge-gitclone
 emerge -gKv coreos-sources
-gzip -cd /proc/config.gz > /usr/src/linux/.config
+PKGDIR=/tmp PORTAGE_TMPDIR=/tmp ROOT=/tmp emerge -gKOv coreos-modules
+cp -f /tmp/usr/boot/config /usr/src/linux/.config
 exec make -C /usr/src/linux -j"$(nproc)" modules_prepare V=1
 EOF
 '''  /* Editor quote safety: ' */
