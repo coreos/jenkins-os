@@ -108,7 +108,7 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --qemu-bios=bios-256k.bin \
     --qemu-image=/mnt/host/source/tmp/coreos_modified.bin \
     --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap" \
-    --torcx-manifest=/mnt/host/source/torcx_manifest.json
+    --torcx-manifest=/mnt/host/source/torcx_manifest.json | tee test.output
 
 sudo rm -rf tmp
 
@@ -117,6 +117,8 @@ if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
                   "${DOWNLOAD_ROOT}/boards/${BOARD}/current-master/version.txt"
 fi
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''awk 'BEGIN{line=""} /--- FAIL: (.*) \\([0-9\\.]+s\\)/{if(line!=""){print line};flag=1;print $0;next}/([:space:]*[-=]{3})|((PASS)|(FAIL), output in)/{flag=0}flag {line=$0} END{print line}' < test.output'''
                 }
             }
         }
@@ -147,3 +149,7 @@ fi
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'bad',
+              message: "```Kola: QEMU-amd64 Failure:\n$message```"

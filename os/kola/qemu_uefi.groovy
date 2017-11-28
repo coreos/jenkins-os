@@ -108,10 +108,12 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
     --qemu-bios=/mnt/host/source/tmp/coreos_production_qemu_uefi_efi_code.fd \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
     --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap" \
-    --torcx-manifest=/mnt/host/source/torcx_manifest.json
+    --torcx-manifest=/mnt/host/source/torcx_manifest.json | tee test.output
 
 sudo rm -rf tmp
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''awk 'BEGIN{line=""} /--- FAIL: (.*) \\([0-9\\.]+s\\)/{if(line!=""){print line};flag=1;print $0;next}/([:space:]*[-=]{3})|((PASS)|(FAIL), output in)/{flag=0}flag {line=$0} END{print line}' < test.output'''
                 }
             }
         }
@@ -142,3 +144,7 @@ sudo rm -rf tmp
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'bad',
+              message: "```Kola: QEMU_UEFI-$BOARD Failure:\n$message```"
