@@ -31,8 +31,6 @@ def pagesProject = 'coreos-inc/pages'
 def gitAuthor = 'Jenkins OS'
 def gitEmail = 'team-os@coreos.com'
 
-def gcRepo = 'https://packages.cloud.google.com/yum/repos/cloud-sdk-el7-x86_64'
-
 /* Generate all of the actual required strings from the above values.  */
 def base = params.BASE_VERSION
 def channel = params.CHANNEL
@@ -46,7 +44,36 @@ def docsUrl = "ssh://git@github.com/${docsProject}.git"
 def forkUrl = "ssh://git@github.com/${forkProject}.git"
 def pagesUrl = "ssh://git@github.com/${pagesProject}.git"
 
-node('amd64 && docker') {
+node('amd64 && coreos && sudo') {
+    stage('SDK') {
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
+        copyArtifacts filter: 'keyring.asc',
+                      fingerprintArtifacts: true,
+                      projectName: '/os/keyring',
+                      selector: lastSuccessful()
+        sh '''#!/bin/bash -ex
+# Set up GPG for verifying manifest tags.
+export GNUPGHOME="${PWD}/gnupg"
+rm -fr "${GNUPGHOME}"
+trap 'rm -fr "${GNUPGHOME}"' EXIT
+mkdir --mode=0700 "${GNUPGHOME}"
+gpg --import keyring.asc
+
+# Find the most recent alpha version.
+bin/gangue get --json-key=/dev/null \
+    gs://alpha.release.core-os.net/amd64-usr/current/version.txt
+. version.txt
+
+# Create the SDK used by the most recent alpha without updating.
+bin/cork create \
+    --replace --verify --verify-signature --verbose \
+    --manifest-branch=refs/tags/v${COREOS_VERSION} \
+    --manifest-name=release.xml
+'''  /* Editor quote safety: ' */
+    }
+
     sshagent([sshCreds]) {
         /* The git step ignores the sshagent environment, so script it.  */
         stage('SCM') {
@@ -64,17 +91,10 @@ git -C coreos-pages checkout -B ${branch}
         stage('Build') {
             if (base == '')
                 sh '''#!/bin/bash -ex
-docker run --rm -i \
-    -v "$PWD/pages/sync:/source" \
-    -w /source \
-    scorpil/rust:stable \
-    /bin/bash -ex << EOF
-apt-get update
-apt-get -y install g++ make
-cargo install -f
-cp /root/.cargo/bin/sync .
-chown -R $(id -u):$(id -g) .
-EOF
+bin/cork enter --experimental -- \
+    cargo build --package=sync --release --verbose \
+        --manifest-path=/mnt/host/source/pages/sync/Cargo.toml
+ln -fns target/release/sync  pages/sync/sync
 '''  /* Editor quote safety: ' */
         }
 
@@ -99,7 +119,7 @@ git -C coreos-pages commit -am "os: prune old ${channel} releases" || :
 '''  /* Editor quote safety: ' */
         }
 
-        stage('Sync') {
+        stage('Release') {
             withCredentials([
                 file(credentialsId: gsCreds,
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS')
@@ -107,38 +127,17 @@ git -C coreos-pages commit -am "os: prune old ${channel} releases" || :
                 sh """#!/bin/bash -ex
 cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json && chmod 0600 account.json
 trap 'shred -u account.json' EXIT
-docker run --rm -i \
-    -v "\$PWD:/workspace" \
-    -w /workspace/coreos-pages \
-    fedora:latest \
-    /bin/bash -ex << EOF
-rpmkeys --import /dev/stdin << EOG  # Import the Google RPM key.
------BEGIN PGP PUBLIC KEY BLOCK-----
-Version: GnuPG v1
-
-mQENBFWKtqgBCADmKQWYQF9YoPxLEQZ5XA6DFVg9ZHG4HIuehsSJETMPQ+W9K5c5
-Us5assCZBjG/k5i62SmWb09eHtWsbbEgexURBWJ7IxA8kM3kpTo7bx+LqySDsSC3
-/8JRkiyibVV0dDNv/EzRQsGDxmk5Xl8SbQJ/C2ECSUT2ok225f079m2VJsUGHG+5
-RpyHHgoMaRNedYP8ksYBPSD6sA3Xqpsh/0cF4sm8QtmsxkBmCCIjBa0B0LybDtdX
-XIq5kPJsIrC2zvERIPm1ez/9FyGmZKEFnBGeFC45z5U//pHdB1z03dYKGrKdDpID
-17kNbC5wl24k/IeYyTY9IutMXvuNbVSXaVtRABEBAAG0Okdvb2dsZSBDbG91ZCBQ
-YWNrYWdlcyBSUE0gU2lnbmluZyBLZXkgPGdjLXRlYW1AZ29vZ2xlLmNvbT6JATgE
-EwECACIFAlWKtqgCGy8GCwkIBwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEPCcOUw+
-G6jV+QwH/0wRH+XovIwLGfkg6kYLEvNPvOIYNQWnrT6zZ+XcV47WkJ+i5SR+QpUI
-udMSWVf4nkv+XVHruxydafRIeocaXY0E8EuIHGBSB2KR3HxG6JbgUiWlCVRNt4Qd
-6udC6Ep7maKEIpO40M8UHRuKrp4iLGIhPm3ELGO6uc8rks8qOBMH4ozU+3PB9a0b
-GnPBEsZdOBI1phyftLyyuEvG8PeUYD+uzSx8jp9xbMg66gQRMP9XGzcCkD+b8w1o
-7v3J3juKKpgvx5Lqwvwv2ywqn/Wr5d5OBCHEw8KtU/tfxycz/oo6XUIshgEbS/+P
-6yKDuYhRp6qxrYXjmAszIT25cftb4d4=
-=/PbX
------END PGP PUBLIC KEY BLOCK-----
-EOG
-dnf --repofrompath='gcloud,${gcRepo}' -y install git google-cloud-sdk jq which
-gcloud auth activate-service-account --key-file=/workspace/account.json
+bin/cork enter --experimental -- /bin/bash -ex << 'EOF'
+gcloud auth activate-service-account --key-file=/mnt/host/source/account.json
+cd /mnt/host/source/coreos-pages
 ../pages/scripts/sync-release ${channel} ${version}
-chown -R \$(id -u):\$(id -g) .
 EOF
+"""  /* Editor quote safety: " */
+            }
+        }
 
+        stage('Sync') {
+            sh """#!/bin/bash -ex
 if [ -n '${base}' ]
 then
         cp -r coreos-pages/_os/${base} coreos-pages/_os/${version}
@@ -166,7 +165,6 @@ git -C coreos-pages add .
 git -C coreos-pages commit -am 'os: sync ${version}'
 git -C coreos-pages push -f ${forkUrl} ${branch}
 """  /* Editor quote safety: " */
-            }
         }
     }
 
