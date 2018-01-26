@@ -82,6 +82,8 @@ node('coreos && amd64 && sudo') {
 # The build may not be started without a tag value.
 [ -n "${MANIFEST_TAG}" ]
 
+rm -rf *.tap _kola_temp*
+
 # Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
 rm -rf "${GNUPGHOME}"
@@ -107,8 +109,6 @@ mv ${OCI_TEST_CONFIG} ~/.oci/config
 mv ${OCI_TEST_KEY} ~/.oci/oci_api_key.pem
 touch ~/.oci/config.mantle
 trap 'rm -rf ~/.oci/' EXIT
-
-rm -rf *.tap _kola_temp*
 
 mkdir -p src tmp
 bin/cork download-image \
