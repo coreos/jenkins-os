@@ -7,6 +7,9 @@ properties([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',
                description: 'Manifest branch or tag to build'),
+        string(name: 'MANIFEST_NAME',
+               defaultValue: 'default',
+               description: 'Manifest file name (less .xml extension)'),
         string(name: 'PROFILE',
                defaultValue: 'default:developer',
                description: '''Which JSON build profile to load from a Groovy \
@@ -162,7 +165,7 @@ then
 fi
 
 MANIFEST_BRANCH="${GIT_BRANCH##*/}"
-MANIFEST_NAME="${MANIFEST_BRANCH}.xml"
+MANIFEST_NAME="${MANIFEST_NAME}.xml"
 [[ -f "manifest/${MANIFEST_NAME}" ]]
 
 source manifest/version.txt
