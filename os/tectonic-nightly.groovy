@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
-def default_builder_image = 'quay.io/coreos/tectonic-builder:v1.43'
-def tectonic_smoke_test_env_image = 'quay.io/coreos/tectonic-smoke-test-env:v5.14'
+def default_builder_image = 'quay.io/coreos/tectonic-builder:v1.44'
+def tectonic_smoke_test_env_image = 'quay.io/coreos/tectonic-smoke-test-env:v5.15'
 
 properties([
     parameters([
@@ -34,6 +34,8 @@ properties([
 
     pipelineTriggers([cron('H 22 * * *')])
 ])
+
+def rc = 0
 
 node('amd64 && docker') {
     stage('Cleanup') {
@@ -80,7 +82,7 @@ node('amd64 && docker') {
                          "CLUSTER=${params.CLUSTER}",
                          "TF_VAR_tectonic_base_domain=${params.TF_VAR_tectonic_base_domain}",
                          "TF_VAR_tectonic_aws_region=${params.TF_VAR_tectonic_aws_region}"]) {
-                    sh '''#!/bin/bash -ex
+                    rc = sh returnStatus: true, script: '''#!/bin/bash -ex
                     function cleanup {
                         # Delete aws key-pair
                         if [ -n "$TF_VAR_tectonic_aws_ssh_key" ]; then
@@ -136,3 +138,11 @@ node('amd64 && docker') {
         }
     }
 }
+
+if (rc != 0)
+    slackSend color: 'bad',
+              message: '''tectonic-nightly failed!\n$BUILD_URL''',
+              channel: '@slowrie'
+
+/* Propagate the job status after publishing TAP results.  */
+currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
