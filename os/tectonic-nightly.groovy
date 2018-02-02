@@ -1,7 +1,7 @@
 #!/usr/bin/env groovy
 
-def default_builder_image = 'quay.io/coreos/tectonic-builder:v1.43'
-def tectonic_smoke_test_env_image = 'quay.io/coreos/tectonic-smoke-test-env:v5.14'
+def default_builder_image = 'quay.io/coreos/tectonic-builder:v1.44'
+def tectonic_smoke_test_env_image = 'quay.io/coreos/tectonic-smoke-test-env:v5.15'
 
 properties([
     parameters([
