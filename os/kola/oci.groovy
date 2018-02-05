@@ -188,6 +188,8 @@ timeout --signal=SIGQUIT 300m bin/kola run \
     --tapfile="${JOB_NAME##*/}.tap" \
     --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/oci-latest/reports/report.json | paste -sd "," -'''
             }
         }
     }
@@ -217,3 +219,7 @@ timeout --signal=SIGQUIT 300m bin/kola run \
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'danger',
+              message: "```Kola: OCI-amd64 Failure: <$BUILD_URL|Build> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"

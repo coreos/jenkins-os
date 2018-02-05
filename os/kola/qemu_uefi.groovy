@@ -112,6 +112,8 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
 
 sudo rm -rf tmp
 '''  /* Editor quote safety: ' */
+
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/qemu-latest/reports/report.json | paste -sd "," -'''
                 }
             }
         }
@@ -142,3 +144,7 @@ sudo rm -rf tmp
 
 /* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
+
+if (currentBuild.result == 'FAILURE')
+    slackSend color: 'danger',
+              message: "```Kola: QEMU_UEFI-$BOARD Failure: <$BUILD_URL|Build> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
