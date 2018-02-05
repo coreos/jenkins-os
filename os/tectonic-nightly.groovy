@@ -140,9 +140,8 @@ node('amd64 && docker') {
 }
 
 if (rc != 0)
-    slackSend color: 'bad',
-              message: '''tectonic-nightly failed!\n$BUILD_URL''',
+    slackSend color: 'danger',
+              message: "tectonic-nightly failed!\n$BUILD_URL",
               channel: '@slowrie'
 
-/* Propagate the job status after publishing TAP results.  */
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
