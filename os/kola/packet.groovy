@@ -126,7 +126,7 @@ timeout --signal=SIGQUIT "${timeout}" bin/kola run \
     --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
 
-                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/packet-latest/reports/report.json | paste -sd "," -'''
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/packet-latest/reports/report.json | sed -e :a -e '$!N; s/\n/, /; ta''''
                 }
             }
         }
@@ -160,4 +160,4 @@ currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
 
 if (currentBuild.result == 'FAILURE')
     slackSend color: 'danger',
-              message: "```Kola: Packet-$BOARD Failure: <$BUILD_URL|Build> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
+              message: "```Kola: Packet-$BOARD Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
