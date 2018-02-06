@@ -53,7 +53,7 @@ rm -rf *.tap _kola_temp*
 
 NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
-instance_type="t2.small"
+instance_type="m4.large"
 if [[ "${AWS_AMI_TYPE}" == "PV" ]]; then
     instance_type="m3.medium"
 fi
