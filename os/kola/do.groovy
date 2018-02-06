@@ -114,7 +114,7 @@ timeout --signal=SIGQUIT 60m bin/kola run \
     --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
 
-                    message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/do-latest/reports/report.json | paste -sd "," -'''
+                    message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/do-latest/reports/report.json | sed -e :a -e '$!N; s/\n/, /; ta''''
                 }
             }
         }
@@ -148,4 +148,4 @@ currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
 
 if (currentBuild.result == 'FAILURE')
     slackSend color: 'danger',
-              message: "```Kola: DO-amd64 Failure: <$BUILD_URL|Build> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
+              message: "```Kola: DO-amd64 Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
