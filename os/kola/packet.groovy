@@ -126,7 +126,7 @@ timeout --signal=SIGQUIT "${timeout}" bin/kola run \
     --torcx-manifest=torcx_manifest.json
 '''  /* Editor quote safety: ' */
 
-                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/packet-latest/reports/report.json | sed -e :a -e '$!N; s/\n/, /; ta''''
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/packet-latest/reports/report.json | sed -e :a -e '$!N; s/\\n/, /; ta' '''
                 }
             }
         }
