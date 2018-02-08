@@ -82,7 +82,7 @@ node('coreos && amd64 && sudo') {
 # The build may not be started without a tag value.
 [ -n "${MANIFEST_TAG}" ]
 
-rm -rf *.tap _kola_temp*
+rm -rf *.tap src/scripts/_kola_temp _kola_temp*
 
 # Set up GPG for verifying tags.
 export GNUPGHOME="${PWD}/.gnupg"
@@ -103,14 +103,7 @@ enter() {
     bin/cork enter --experimental -- "$@"
 }
 
-rm -rf ~/.oci
-mkdir  --mode=0700 ~/.oci
-mv ${OCI_TEST_CONFIG} ~/.oci/config
-mv ${OCI_TEST_KEY} ~/.oci/oci_api_key.pem
-touch ~/.oci/config.mantle
-trap 'rm -rf ~/.oci/' EXIT
-
-mkdir -p src tmp
+mkdir -p src
 bin/cork download-image \
     --root="${DOWNLOAD_ROOT}/boards/${BOARD}/${VERSION}" \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
@@ -120,26 +113,32 @@ bin/cork download-image \
 img=src/coreos_production_oracle_oci_qcow_image.img
 [[ "${img}.bz2" -nt "${img}" ]] && enter lbunzip2 -k -f "/mnt/host/source/${img}.bz2"
 
-compartment=$(awk -F "=" '/compartment/ {print $2}' ~/.oci/config)
+rm -rf .oci
+mkdir --mode=0700 .oci
+mv ${OCI_TEST_CONFIG} .oci/config
+mv ${OCI_TEST_KEY} .oci/oci_api_key.pem
+touch .oci/config.mantle
+
+trap 'rm -rf .oci' EXIT;
+compartment=$(awk -F "=" '/compartment/ {print $2}' .oci/config)
 bucket=image-upload
 region=us-phoenix-1
 object="Container-Linux-${GROUP}-${VERSION}.qcow"
+NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
 
-# Enter the SDK to use pyvenv to setup oci-cli to import the image
-# for testing. Currently the bmcs-go-sdk does not support importing
-# images from objectstorage. Has a 30 minute timeout to upload the
-# image to objectstorage, import the image, and wait for the image
-# to be finished importing before deleting it (if you delete the
-# object from objectstorage during an image import it will fail).
-rm -rf src/.oci
-cp -r ~/.oci src/
-trap 'rm -rf src/.oci ~/.oci/' EXIT;
-timeout --signal=SIGQUIT 60m bin/cork enter --experimental -- region=$region bucket=$bucket object=$object compartment=$compartment sh -ex << 'EOF'
+sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
+sudo cp -t chroot/usr/bin bin/[b-z]*
+
+# Run the script through the SDK to give access to python for the
+# oci-cli which is used to import the image and to provide a stable
+# location for the configuration files (the .oci/config must point
+# to the .oci/oci_api_key.pem files location and cannot be configured
+# via parameters).
+bin/cork enter --experimental -- region=$region bucket=$bucket object=$object compartment=$compartment NAME=$NAME OCI_SHAPE=$OCI_SHAPE sh -ex << 'EOF'
 pyvenv ocienv && ocienv/bin/pip install oci-cli --upgrade;
-cp -r /mnt/host/source/src/.oci ~/;
+ln -fns /mnt/host/source/.oci ~/.oci
 export LC_ALL=C.UTF-8;
 export LANG=C.UTF-8;
-trap 'rm -rf ~/.oci/' EXIT;
 namespace=$(ocienv/bin/oci os ns get | jq .data -r);
 uri="https://objectstorage.${region}.oraclecloud.com/n/${namespace}/b/${bucket}/o/${object}";
 ocienv/bin/oci os object put \
@@ -151,45 +150,39 @@ trap 'ocienv/bin/oci os object delete \
      --namespace "${namespace}" \
      --bucket-name "${bucket}" \
      --name "${object}" \
-     --force && rm -rf ~/.oci/' EXIT;
+     --force' EXIT;
 ocienv/bin/oci compute image import from-object-uri \
      --uri "${uri}" \
      --compartment-id "${compartment}" | jq -r .data.id > /mnt/host/source/src/image_id;
-id=$(cat /mnt/host/source/src/image_id);
-while :
+trap 'ocienv/bin/oci compute image delete --image-id "${image_id}" --force' EXIT
+image_id=$(cat /mnt/host/source/src/image_id);
+for ((i=0; i<60; i++ ))
 do
     sleep 1m
-    state=$(ocienv/bin/oci compute image get --image-id "${id}" | jq -r '.data[ "lifecycle-state" ]');
+    state=$(ocienv/bin/oci compute image get --image-id "${image_id}" | jq -r '.data[ "lifecycle-state" ]');
     if [ "$state" == "AVAILABLE" ]; then
         break;
     fi
 done
-EOF
 
-image_id=$(<src/image_id)
+ocienv/bin/oci os object delete \
+     --namespace "${namespace}" \
+     --bucket-name "${bucket}" \
+     --name "${object}" \
+     --force
 
-trap '{ bin/cork enter --experimental -- sh -ex << EOF
-cp -r /mnt/host/source/src/.oci ~/;
-export LC_ALL=C.UTF-8;
-export LANG=C.UTF-8;
-trap "rm -rf ~/.oci/" EXIT;
-ocienv/bin/oci compute image delete --image-id "${image_id}" --force;
-EOF
-} && rm -rf src/.oci/ ~/.oci/' EXIT
-
-NAME="jenkins-${JOB_NAME##*/}-${BUILD_NUMBER}"
-
-timeout --signal=SIGQUIT 300m bin/kola run \
+timeout --signal=SIGQUIT 300m kola run \
     --parallel=1 \
     --basename="${NAME}" \
     --oci-image="${image_id}" \
     --oci-shape="${OCI_SHAPE}" \
     --platform=oci \
     --tapfile="${JOB_NAME##*/}.tap" \
-    --torcx-manifest=torcx_manifest.json
+    --torcx-manifest=/mnt/host/source/torcx_manifest.json
+EOF
 '''  /* Editor quote safety: ' */
 
-                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/oci-latest/reports/report.json | sed -e :a -e '$!N; s/\\n/, /; ta' '''
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < src/scripts/_kola_temp/oci-latest/reports/report.json | sed -e :a -e '$!N; s/\\n/, /; ta' '''
             }
         }
     }
@@ -212,7 +205,7 @@ timeout --signal=SIGQUIT 300m bin/kola run \
               validateNumberOfTests: true,
               verbose: true])
 
-        sh 'tar -cJf _kola_temp.tar.xz _kola_temp'
+        sh 'tar -C src/scripts -cJf _kola_temp.tar.xz _kola_temp'
         archiveArtifacts '_kola_temp.tar.xz'
     }
 }
