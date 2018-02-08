@@ -29,7 +29,10 @@ properties([
         credentials(credentialType: 'com.cloudbees.jenkins.plugins.awscredentials.AWSCredentialsImpl',
                     defaultValue: 'c7e3cb5d-0c69-46c8-b184-48d68b1ce680',
                     name: 'AWS_TEST_CREDS',
-                    required: true)
+                    required: true),
+        string(name: 'AMI',
+               defaultValue: '',
+               description: 'AMI to use instead of latest nightly')
     ]),
 
     pipelineTriggers([cron('H 22 * * *')])
@@ -80,6 +83,7 @@ node('amd64 && docker') {
                 withEnv(["TECTONIC_INSTALLER_ROLE=tectonic-installer",
                          "GO_PROEJCT=/go/src/github.com/coreos/tectonic-installer",
                          "CLUSTER=${params.CLUSTER}",
+                         "AMI=${params.AMI}",
                          "TF_VAR_tectonic_base_domain=${params.TF_VAR_tectonic_base_domain}",
                          "TF_VAR_tectonic_aws_region=${params.TF_VAR_tectonic_aws_region}"]) {
                     rc = sh returnStatus: true, script: '''#!/bin/bash -ex
@@ -110,9 +114,11 @@ node('amd64 && docker') {
                     echo "IdentityFile $sshdir/$TF_VAR_tectonic_aws_ssh_key" >> ~/.ssh/config
                     aws ec2 import-key-pair --key-name=$TF_VAR_tectonic_aws_ssh_key --public-key-material "$kp" --region us-west-2
 
-                    # Fetch current nightly version and export the EC2 AMI Override
-                    COREOS_VERSION=$(curl -Ls "https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/current-master/version.txt" | sed -n 's/^COREOS_VERSION=//p')
-                    AMI=$(curl -s "https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/${COREOS_VERSION}/coreos_production_ami_all.json" | jq -r '.amis[] | select(.name == "us-west-2") | .hvm')
+                    if [ -z "$AMI" ]; then
+                        # Fetch current nightly version and export the EC2 AMI Override
+                        COREOS_VERSION=$(curl -Ls "https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/current-master/version.txt" | sed -n 's/^COREOS_VERSION=//p')
+                        AMI=$(curl -s "https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/${COREOS_VERSION}/coreos_production_ami_all.json" | jq -r '.amis[] | select(.name == "us-west-2") | .hvm')
+                    fi
                     export TF_VAR_tectonic_aws_ec2_ami_override=$AMI
 
                     # Update the k8s-node-bootstrap to use the developer URL & disable signature validation
