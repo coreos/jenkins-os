@@ -105,4 +105,4 @@ currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
 
 if (currentBuild.result == 'FAILURE')
     slackSend color: 'danger',
-              message: "```Kola: GCE-amd64 Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
+              message: "```Kola: GCE-amd64 Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifact/_kola_temp.tar.xz|_kola_temp>\n$message```"

@@ -147,4 +147,4 @@ currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
 
 if (currentBuild.result == 'FAILURE')
     slackSend color: 'danger',
-              message: "```Kola: QEMU_UEFI-$BOARD Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifacts/_kola_temp.tar.xz|_kola_temp>\n$message```"
+              message: "```Kola: QEMU_UEFI-$BOARD Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifact/_kola_temp.tar.xz|_kola_temp>\n$message```"
