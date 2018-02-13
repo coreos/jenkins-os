@@ -118,6 +118,7 @@ mkdir --mode=0700 .oci
 mv ${OCI_TEST_CONFIG} .oci/config
 mv ${OCI_TEST_KEY} .oci/oci_api_key.pem
 touch .oci/config.mantle
+chmod 0600 .oci/*
 
 trap 'rm -rf .oci' EXIT;
 compartment=$(awk -F "=" '/compartment/ {print $2}' .oci/config)
