@@ -194,7 +194,7 @@ bin/cork update \
     --new-version "${COREOS_VERSION}" \
     --sdk-version "${COREOS_SDK_VERSION}"
 
-bin/cork enter --experimental -- sh -exc \
+bin/cork enter --bind-gpg-agent=false -- sh -exc \
     "cd /mnt/host/source && repo manifest -r > 'manifest/${COREOS_BUILD_ID}.xml'"
 
 ln -fns "${COREOS_BUILD_ID}.xml" manifest/default.xml
@@ -236,7 +236,7 @@ finish "${COREOS_BUILD_ID}"
             ]) {
                 withEnv(["DEVEL_ROOT=${profile.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
-bin/cork enter --experimental -- \
+bin/cork enter --bind-gpg-agent=false -- \
     gsutil cat "${DEVEL_ROOT}/boards/amd64-usr/current-master/version.txt" |
 tee /dev/stderr |
 grep -m1 ^COREOS_VERSION= > current.txt

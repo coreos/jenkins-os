@@ -71,7 +71,7 @@ bin/cork update \
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
 enter() {
-    bin/cork enter --experimental -- "$@"
+    bin/cork enter --bind-gpg-agent=false -- "$@"
 }
 
 rm -rf ~/.oci
@@ -98,7 +98,7 @@ object="Container-Linux-${CHANNEL}-${VERSION}.qcow"
 rm -rf src/.oci
 cp -r ~/.oci src/
 trap 'rm -rf src/.oci ~/.oci/' EXIT;
-bin/cork enter --experimental -- region=$region bucket=$bucket object=$object sh -ex << 'EOF'
+bin/cork enter --bind-gpg-agent=false -- region=$region bucket=$bucket object=$object sh -ex << 'EOF'
 rm -rf ocienv/;
 pyvenv ocienv && ocienv/bin/pip install oci-cli;
 cp -r /mnt/host/source/src/.oci ~/;

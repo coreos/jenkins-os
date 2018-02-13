@@ -101,7 +101,7 @@ bin/cork update \
 [ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
 
 enter() {
-    bin/cork enter --experimental -- "$@"
+    bin/cork enter --bind-gpg-agent=false -- "$@"
 }
 
 mkdir -p src
@@ -136,7 +136,7 @@ sudo cp -t chroot/usr/bin bin/[b-z]*
 # location for the configuration files (the .oci/config must point
 # to the .oci/oci_api_key.pem files location and cannot be configured
 # via parameters).
-bin/cork enter --experimental -- region=$region bucket=$bucket object=$object compartment=$compartment NAME=$NAME OCI_SHAPE=$OCI_SHAPE sh -ex << 'EOF'
+bin/cork enter --bind-gpg-agent=false -- region=$region bucket=$bucket object=$object compartment=$compartment NAME=$NAME OCI_SHAPE=$OCI_SHAPE sh -ex << 'EOF'
 pyvenv ocienv && ocienv/bin/pip install oci-cli --upgrade;
 ln -fns /mnt/host/source/.oci ~/.oci
 export LC_ALL=C.UTF-8;

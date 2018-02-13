@@ -32,7 +32,7 @@ node('coreos && amd64 && sudo') {
         ]) {
             sh '''#!/bin/bash -ex
 bin/cork update --create --verbose --force-sync
-bin/cork enter --experimental -- \
+bin/cork enter --bind-gpg-agent=false -- \
     /mnt/host/source/src/scripts/update_distfiles --download --upload coreos portage-stable
 '''
         }
