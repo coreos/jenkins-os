@@ -172,6 +172,11 @@ ocienv/bin/oci os object delete \
      --name "${object}" \
      --force
 
+if [ "$state" != "AVAILABLE" ]; then
+    # The image isn't available after 1 hour, exit
+    exit 1
+fi
+
 timeout --signal=SIGQUIT 300m kola run \
     --parallel=1 \
     --basename="${NAME}" \
