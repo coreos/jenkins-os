@@ -63,6 +63,7 @@ gpg --import verify.asc
 
 bin/cork update \
     --create --downgrade-replace --verify --verify-signature --verbose \
+    --force-sync \
     --manifest-branch "refs/tags/v${VERSION}" \
     --manifest-name "release.xml" \
     --manifest-url "https://github.com/coreos/manifest-builds.git"

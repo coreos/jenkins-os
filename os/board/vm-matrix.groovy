@@ -260,6 +260,7 @@ gpg --import verify.asc
 
 bin/cork update \
     --create --downgrade-replace --verify --verify-signature --verbose \
+    --force-sync \
     --manifest-branch "refs/tags/${MANIFEST_TAG}" \
     --manifest-name "${MANIFEST_NAME}" \
     --manifest-url "${MANIFEST_URL}"
