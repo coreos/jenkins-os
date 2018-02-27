@@ -184,7 +184,7 @@ timeout --signal=SIGQUIT 300m kola run \
     --oci-image="${image_id}" \
     --oci-shape="${OCI_SHAPE}" \
     --platform=oci \
-    --tapfile="${JOB_NAME##*/}.tap" \
+    --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap" \
     --torcx-manifest=/mnt/host/source/torcx_manifest.json
 EOF
 '''  /* Editor quote safety: ' */
