@@ -114,7 +114,7 @@ enter sudo timeout --signal=SIGQUIT 60m kola run \
 sudo rm -rf tmp
 '''  /* Editor quote safety: ' */
 
-                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < _kola_temp/qemu-latest/reports/report.json | sed -e :a -e '$!N; s/\\n/, /; ta' '''
+                message = sh returnStdout: true, script: '''jq '.tests[] | select(.result == "FAIL") | .name' -r < src/scripts/_kola_temp/qemu-latest/reports/report.json | sed -e :a -e '$!N; s/\\n/, /; ta' '''
                 }
             }
         }
