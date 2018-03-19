@@ -111,12 +111,20 @@ node('coreos && amd64 && sudo') {
             keyring = profile.VERIFY_KEYRING
         }
 
+        Object signingCreds;
+        if (profile.SIGNING_CREDS.startsWith('file:')) {
+            signingCreds = file(credentialsId: profile.SIGNING_CREDS.substring('file:'.length()), variable: 'GPG_SECRET_KEY_FILE');
+        } else if (profile.SIGNING_CREDS.startsWith('pin:')) {
+            signingCreds = file(credentialsId: profile.SIGNING_CREDS.substring('pin:'.length()), variable: 'GPG_SECRET_KEY_PIN');
+        } else {
+            /* backwards compatibility */
+            signingCreds = file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE');
+        }
+
         writeFile file: 'verify.asc', text: keyring
 
         sshagent([profile.BUILDS_PUSH_CREDS]) {
-            withCredentials([
-                file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
-            ]) {
+            withCredentials([signingCreds]) {
                 /* Work around JENKINS-35230 (broken GIT_* variables).  */
                 withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
                          "BUILDS_CLONE_URL=${profile.BUILDS_CLONE_URL}",
@@ -136,6 +144,10 @@ git -C manifest config user.email "${GIT_AUTHOR_EMAIL}"
 
 COREOS_OFFICIAL=0
 
+enter() {
+        bin/cork enter --bind-gpg-agent -- "$@"
+}
+
 finish() {
         local tag="$1"
         git -C manifest tag -v "${tag}"
@@ -154,6 +166,8 @@ rm -rf "${GNUPGHOME}"
 trap 'rm -rf "${GNUPGHOME}"' EXIT
 mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
+
+echo "allow-loopback-pinentry" >> "${GNUPGHOME}/gpg-agent.conf"
 
 # Branches are of the form remote-name/branch-name.  Tags are just tag-name.
 # If we have a release tag use it, for branches we need to make a tag.
@@ -194,7 +208,7 @@ bin/cork update \
     --new-version "${COREOS_VERSION}" \
     --sdk-version "${COREOS_SDK_VERSION}"
 
-bin/cork enter --experimental -- sh -exc \
+enter sh -exc \
     "cd /mnt/host/source && repo manifest -r > 'manifest/${COREOS_BUILD_ID}.xml'"
 
 ln -fns "${COREOS_BUILD_ID}.xml" manifest/default.xml
@@ -207,8 +221,25 @@ COREOS_BUILD_ID=${COREOS_BUILD_ID}
 COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 
-# Set up GPG for signing tags.
-gpg --import "${GPG_SECRET_KEY_FILE}"
+# Set up sdk GPG for signing tags.
+if [[ -n "${GPG_SECRET_KEY_FILE}" ]]; then
+    enter gpg --import < "${GPG_SECRET_KEY_FILE}"
+fi
+
+if [[ -n "${GPG_SECRET_KEY_PIN}" ]]; then
+    # Container Linux gpg doesn't have smartcard support, sign in the sdk
+    cp -f "${GPG_SECRET_KEY_PIN}" "gpg_key_pin"
+    # Wrap gpg to avoid pinentry prompts and tty issues
+    cat > "gpg" <<EOF
+#!/bin/bash
+exec gpg --batch --no-tty --pinentry-mode loopback --passphrase-file "/mnt/host/source/gpg_key_pin" "\\$@"
+EOF
+    chmod +x "gpg"
+    # A single '--card-status' run is needed if the stub isn't in the keyring
+    enter /mnt/host/source/gpg --card-status
+
+    git -C manifest config gpg.program "/mnt/host/source/gpg"
+fi
 
 # Tag a development build manifest.
 git -C manifest add "${COREOS_BUILD_ID}.xml" default.xml release.xml version.txt
@@ -216,7 +247,12 @@ git -C manifest commit \
     -m "${COREOS_BUILD_ID}: add build manifest" \
     -m "Based on ${GIT_URL} branch ${MANIFEST_BRANCH}" \
     -m "${BUILD_URL}"
-git -C manifest tag -u "${SIGNING_USER}" -m "${COREOS_BUILD_ID}" "${COREOS_BUILD_ID}"
+
+enter git -C /mnt/host/source/manifest tag -u "${SIGNING_USER}" -m "${COREOS_BUILD_ID}" "${COREOS_BUILD_ID}"
+
+# Now that we're done signing inside the sdk, use the default 'gpg' for
+# verification
+git -C manifest config --unset gpg.program
 
 # Assert that what we just did will work by updating the symlink because verify
 # doesn't have a --manifest-name option yet.
@@ -236,8 +272,7 @@ finish "${COREOS_BUILD_ID}"
             ]) {
                 withEnv(["DEVEL_ROOT=${profile.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
-bin/cork enter --experimental -- \
-    gsutil cat "${DEVEL_ROOT}/boards/amd64-usr/current-master/version.txt" |
+enter gsutil cat "${DEVEL_ROOT}/boards/amd64-usr/current-master/version.txt" |
 tee /dev/stderr |
 grep -m1 ^COREOS_VERSION= > current.txt
 '''  /* Editor quote safety: ' */

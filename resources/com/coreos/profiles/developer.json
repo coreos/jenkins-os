@@ -89,11 +89,17 @@
     /*
      * All of the files resulting from the build (OS images, firmware,
      * digests, etc.) are signed with the following GPG key.  The given
-     * credentials ID should point to the private key file to be used,
-     * and the e-mail address identifies it to the GPG command.
+     * credentials ID may point to either the private key file or a pin if the
+     * given SIGNING_USER is available on an attached hardware card.
+     * If the SIGNING_CREDS value is prefixed with 'file:', it will be treated
+     * as a secret file.
+     * If the SIGNING_CREDS value is prefixed with 'pin:', it will be treated
+     * as a pin for an attached hardware token.
+     * For backwards compatibility, if it is not prefixed it will be treated as
+     a file.
      */
-    "SIGNING_CREDS": "buildbot-official.EF4B4ED9.subkey.gpg",
-    "SIGNING_USER": "0xEF4B4ED9!",
+    "SIGNING_CREDS": "file:buildbot-official.EF4B4ED9.subkey.gpg",
+    "SIGNING_USER": "0xDE2F8F87EF4B4ED9!",
 
     /*
      * The torcx manifests specify URLs from which to download torcx

@@ -135,7 +135,7 @@ gpg2 --armor --export-secret-keys --output gpg.asc "$SIGNING_USER"
 Create new *Secret file* credentials in Jenkins, and upload `gpg.asc`. Specify the following profile settings.
 
   - `SIGNING_USER` is the e-mail address used when generating the keys.
-  - `SIGNING_CREDS` is the credentials ID of the GPG private key.
+  - `SIGNING_CREDS` is the credentials ID of the GPG private key, prefixed with `file:`.
 
 The profile's `VERIFY_KEYRING` value can be defined in one of two ways.
 
