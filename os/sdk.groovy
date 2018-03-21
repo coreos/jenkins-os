@@ -35,6 +35,11 @@ the Google Storage URL, requires write permission''',
                     description: 'Credential ID for a GPG private key file',
                     name: 'SIGNING_CREDS',
                     required: true),
+        credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
+                    defaultValue: '',
+                    description: 'Credential ID for a GPG private key file',
+                    name: 'SIGNING_CREDS_PIN',
+                    required: true),
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
@@ -63,7 +68,8 @@ node('coreos && amd64 && sudo') {
         sshagent(credentials: [params.BUILDS_CLONE_CREDS], ignoreMissing: true) {
             withCredentials([
                 file(credentialsId: params.GS_DEVEL_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
-                file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
+                file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
+                file(credentialsId: profile.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
