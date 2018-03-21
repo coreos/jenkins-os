@@ -111,20 +111,13 @@ node('coreos && amd64 && sudo') {
             keyring = profile.VERIFY_KEYRING
         }
 
-        Object signingCreds;
-        if (profile.SIGNING_CREDS.startsWith('file:')) {
-            signingCreds = file(credentialsId: profile.SIGNING_CREDS.substring('file:'.length()), variable: 'GPG_SECRET_KEY_FILE');
-        } else if (profile.SIGNING_CREDS.startsWith('pin:')) {
-            signingCreds = file(credentialsId: profile.SIGNING_CREDS.substring('pin:'.length()), variable: 'GPG_SECRET_KEY_PIN');
-        } else {
-            /* backwards compatibility */
-            signingCreds = file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE');
-        }
-
         writeFile file: 'verify.asc', text: keyring
 
         sshagent([profile.BUILDS_PUSH_CREDS]) {
-            withCredentials([signingCreds]) {
+            withCredentials([
+                file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
+                file(credentialsId: profile.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
+            ]) {
                 /* Work around JENKINS-35230 (broken GIT_* variables).  */
                 withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
                          "BUILDS_CLONE_URL=${profile.BUILDS_CLONE_URL}",
@@ -221,22 +214,19 @@ COREOS_BUILD_ID=${COREOS_BUILD_ID}
 COREOS_SDK_VERSION=${COREOS_SDK_VERSION}
 EOF
 
-# Set up sdk GPG for signing tags.
-if [[ -n "${GPG_SECRET_KEY_FILE}" ]]; then
-    enter gpg --import < "${GPG_SECRET_KEY_FILE}"
-fi
+# Set up GPG for signing tags.
+enter gpg --import < "${GPG_SECRET_KEY_FILE}"
 
 if [[ -n "${GPG_SECRET_KEY_PIN}" ]]; then
     # Container Linux gpg doesn't have smartcard support, sign in the sdk
-    cp -f "${GPG_SECRET_KEY_PIN}" "gpg_key_pin"
     # Wrap gpg to avoid pinentry prompts and tty issues
+    local passphrase
+    passphrase=$(cat "${GPG_SECRET_KEY_PIN}")
     cat > "gpg" <<EOF
 #!/bin/bash
-exec gpg --batch --no-tty --pinentry-mode loopback --passphrase-file "/mnt/host/source/gpg_key_pin" "\\$@"
+gpg --batch --no-tty --pinentry-mode loopback --passphrase "${passphrase}" "\\$@"
 EOF
     chmod +x "gpg"
-    # A single '--card-status' run is needed if the stub isn't in the keyring
-    enter /mnt/host/source/gpg --card-status
 
     git -C manifest config gpg.program "/mnt/host/source/gpg"
 fi
@@ -364,6 +354,7 @@ stage('Downstream') {
                     string(name: 'PACKET_PROJECT', value: profile.PACKET_PROJECT),
                     string(name: 'RELEASE_BASE', value: releaseBase),
                     credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                    credentials(name: 'SIGNING_CREDS_PIN', value: profile.SIGNING_CREDS_PIN),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     string(name: 'TORCX_PUBLIC_DOWNLOAD_ROOT', value: profile.TORCX_PUBLIC_DOWNLOAD_ROOT),
                     string(name: 'TORCX_ROOT', value: profile.TORCX_ROOT),
@@ -387,6 +378,7 @@ stage('Downstream') {
                     string(name: 'MANIFEST_TAG', value: dprops.MANIFEST_REF.substring(10)),
                     string(name: 'MANIFEST_URL', value: dprops.MANIFEST_URL),
                     credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                    credentials(name: 'SIGNING_CREDS_PIN', value: profile.SIGNING_CREDS_PIN),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     text(name: 'VERIFY_KEYRING', value: keyring),
                     string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
@@ -415,6 +407,7 @@ stage('Downstream') {
                     credentials(name: 'PACKET_CREDS', value: profile.PACKET_CREDS),
                     string(name: 'PACKET_PROJECT', value: profile.PACKET_PROJECT),
                     credentials(name: 'SIGNING_CREDS', value: profile.SIGNING_CREDS),
+                    credentials(name: 'SIGNING_CREDS_PIN', value: profile.SIGNING_CREDS_PIN),
                     string(name: 'SIGNING_USER', value: profile.SIGNING_USER),
                     string(name: 'TORCX_PUBLIC_DOWNLOAD_ROOT', value: profile.TORCX_PUBLIC_DOWNLOAD_ROOT),
                     string(name: 'TORCX_ROOT', value: profile.TORCX_ROOT),
