@@ -85,6 +85,9 @@ Google Storage URL, requires write permission''',
                     description: 'Credential ID for a GPG private key file',
                     name: 'SIGNING_CREDS',
                     required: true),
+        string(name: 'SIGNING_CREDS_PIN',
+               defaultValue: '',
+               description: 'Smartcard pin if the signing credentials are on a smartcard'),
         string(name: 'SIGNING_USER',
                defaultValue: 'buildbot@coreos.com',
                description: 'E-mail address to identify the GPG key'),
@@ -128,6 +131,7 @@ node('coreos && amd64 && sudo') {
                 file(credentialsId: params.GS_DEVEL_CREDS, variable: 'GS_DEVEL_CREDS'),
                 file(credentialsId: params.GS_RELEASE_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
                 file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
+                string(credentialsId: params.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
             ]) {
                 withEnv(["BOARD=${params.BOARD}",
                          "COREOS_OFFICIAL=1",
@@ -161,7 +165,7 @@ bin/cork update \
 sudo rm -rf gce.properties src tmp
 
 enter() {
-        bin/cork enter --experimental -- "$@"
+        bin/cork enter --bind-gpg-agent -- "$@"
 }
 
 script() {
@@ -172,7 +176,7 @@ source .repo/manifests/version.txt
 export COREOS_BUILD_ID
 
 # Set up GPG for signing uploads.
-gpg --import "${GPG_SECRET_KEY_FILE}"
+enter gpg --import "${GPG_SECRET_KEY_FILE}"
 
 kernel=coreos_production_image.vmlinuz
 grub=coreos_production_image.grub
@@ -216,6 +220,7 @@ script image_inject_bootchain \
     ${shim:+--shim_path=/mnt/host/source/src/$shim} \
     --replace \
     --sign="${SIGNING_USER}" \
+    --signing_pin="${GPG_SECRET_KEY_PIN}" \
     --sign_digests="${SIGNING_USER}" \
     --upload_root="${UPLOAD_ROOT}" \
     --upload
@@ -249,6 +254,7 @@ stage('Downstream') {
         credentials(name: 'PACKET_CREDS', value: params.PACKET_CREDS),
         string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
         credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+        string(name: 'SIGNING_CREDS_PIN', value: params.SIGNING_CREDS_PIN),
         string(name: 'SIGNING_USER', value: params.SIGNING_USER),
         text(name: 'TORCX_MANIFEST', value: params.TORCX_MANIFEST),
         text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
