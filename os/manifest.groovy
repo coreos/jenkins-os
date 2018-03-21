@@ -116,7 +116,7 @@ node('coreos && amd64 && sudo') {
         sshagent([profile.BUILDS_PUSH_CREDS]) {
             withCredentials([
                 file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
-                file(credentialsId: profile.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
+                string(credentialsId: profile.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
             ]) {
                 /* Work around JENKINS-35230 (broken GIT_* variables).  */
                 withEnv(["BUILD_ID_PREFIX=${profile.BUILD_ID_PREFIX}",
@@ -220,11 +220,9 @@ enter gpg --import < "${GPG_SECRET_KEY_FILE}"
 if [[ -n "${GPG_SECRET_KEY_PIN}" ]]; then
     # Container Linux gpg doesn't have smartcard support, sign in the sdk
     # Wrap gpg to avoid pinentry prompts and tty issues
-    local passphrase
-    passphrase=$(cat "${GPG_SECRET_KEY_PIN}")
     cat > "gpg" <<EOF
 #!/bin/bash
-gpg --batch --no-tty --pinentry-mode loopback --passphrase "${passphrase}" "\\$@"
+gpg --batch --no-tty --pinentry-mode loopback --passphrase "${GPG_SECRET_KEY_PIN}" "\\$@"
 EOF
     chmod +x "gpg"
 

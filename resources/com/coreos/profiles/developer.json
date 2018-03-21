@@ -93,8 +93,9 @@
      * 1. As a private key uploaded as the 'SIGNING_CREDS' secret. If this is
      * the case, 'SIGNING_CREDS_PIN' should be left blank.
      * 2. As an attached smartcard + pin. If this is the case, the public key +
-     * signing subkey stub should be uploaded as the 'SIGNING_CREDS' file, and a
-     * file containg only the pin should be uploaded as the 'SIGNING_CREDS_PIN'.
+     * signing subkey stub should be uploaded as the 'SIGNING_CREDS' file, and
+     * the smartcard pin should be uploaded as a string credential, which should
+     * be set as the 'SIGNING_CREDS_PIN'.
      */
     "SIGNING_CREDS": "buildbot-subkey-7FB32ABC0638EB2F-stub",
     "SIGNING_CREDS_PIN": "jenkins-yubikey-05621930",
