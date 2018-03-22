@@ -66,8 +66,8 @@ node('coreos && amd64 && sudo') {
         sshagent(credentials: [params.BUILDS_CLONE_CREDS], ignoreMissing: true) {
             withCredentials([
                 file(credentialsId: params.GS_DEVEL_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
-                file(credentialsId: profile.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
-                string(credentialsId: profile.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
+                file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
+                string(credentialsId: params.SIGNING_CREDS_PIN, variable: 'GPG_SECRET_KEY_PIN'),
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
