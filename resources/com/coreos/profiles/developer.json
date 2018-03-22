@@ -61,10 +61,10 @@
      * location than the final OS images.
      */
     "GS_DEVEL_ROOT": "gs://builds.developer.core-os.net",
-    "GS_DEVEL_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
+    "GS_DEVEL_CREDS": "jenkins-coreos-systems-write-64233b5eccbf.json",
     "GS_RELEASE_DOWNLOAD_ROOT": "gs://builds.developer.core-os.net",
     "GS_RELEASE_ROOT": "gs://builds.developer.core-os.net",
-    "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-5df31bf86df3.json",
+    "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-64233b5eccbf.json",
 
     /*
      * This is the URL cloned by the os/manifest job to read the base
