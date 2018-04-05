@@ -92,8 +92,8 @@
      * credentials ID should point to the private key file to be used,
      * and the e-mail address identifies it to the GPG command.
      */
-    "SIGNING_CREDS": "buildbot-official.EF4B4ED9.subkey.gpg",
-    "SIGNING_USER": "0xEF4B4ED9!",
+    "SIGNING_CREDS": "e9f1dec5-8892-4bac-909d-a6378cd87b1d",
+    "SIGNING_USER": "ct-automation-os@redhat.com",
 
     /*
      * The torcx manifests specify URLs from which to download torcx
