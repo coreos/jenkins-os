@@ -10,6 +10,8 @@
     "GS_RELEASE_CREDS": "jenkins-coreos-systems-write-64233b5eccbf.json",
     "GS_RELEASE_DOWNLOAD_ROOT": "https://beta.release.core-os.net",
     "GS_RELEASE_ROOT": "gs://builds.release.core-os.net/beta",
+    "SIGNING_CREDS": "7fdc5e5b-560c-4cf6-a86e-531d2401d41a",
+    "SIGNING_USER": "0x0638EB2F!",
     "TORCX_PUBLIC_DOWNLOAD_ROOT": "https://tectonic-torcx.release.core-os.net",
     "TORCX_ROOT": "gs://coreos-tectonic-torcx",
 }
