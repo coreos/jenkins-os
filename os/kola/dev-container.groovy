@@ -63,8 +63,14 @@ sudo systemd-nspawn \
     --image=coreos_developer_container.bin \
     /bin/bash -eux << 'EOF'
 emerge-gitclone
-emerge -gKv coreos-sources
-PKGDIR=/tmp PORTAGE_TMPDIR=/tmp ROOT=/tmp emerge -gKOv coreos-modules
+. /usr/share/coreos/release
+if [[ $COREOS_RELEASE_VERSION =~ master ]]
+then
+        git -C /var/lib/portage/portage-stable checkout master
+        git -C /var/lib/portage/coreos-overlay checkout master
+fi
+emerge -gv coreos-sources
+PKGDIR=/tmp PORTAGE_TMPDIR=/tmp ROOT=/tmp emerge -gOv coreos-modules
 cp -f /tmp/usr/boot/config /usr/src/linux/.config
 exec make -C /usr/src/linux -j"$(nproc)" modules_prepare V=1
 EOF
