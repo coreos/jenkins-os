@@ -68,7 +68,7 @@ node('amd64 && kvm && sudo') {
 sudo rm -rf *.tap src/scripts/_kola_temp tmp _kola_temp*
 
 enter() {
-  bin/cork enter --experimental -- "$@"
+  bin/cork enter --bind-gpg-agent=false -- "$@"
 }
 
 # Set up GPG for verifying tags.

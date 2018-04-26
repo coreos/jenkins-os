@@ -91,7 +91,7 @@ git -C coreos-pages checkout -B ${branch}
         stage('Build') {
             if (base == '')
                 sh '''#!/bin/bash -ex
-bin/cork enter --experimental -- \
+bin/cork enter --bind-gpg-agent=false -- \
     cargo build --package=sync --release --verbose \
         --manifest-path=/mnt/host/source/pages/sync/Cargo.toml
 ln -fns target/release/sync  pages/sync/sync
@@ -127,7 +127,7 @@ git -C coreos-pages commit -am "os: prune old ${channel} releases" || :
                 sh """#!/bin/bash -ex
 cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json && chmod 0600 account.json
 trap 'shred -u account.json' EXIT
-bin/cork enter --experimental -- /bin/bash -ex << 'EOF'
+bin/cork enter --bind-gpg-agent=false -- /bin/bash -ex << 'EOF'
 gcloud auth activate-service-account --key-file=/mnt/host/source/account.json
 cd /mnt/host/source/coreos-pages
 ../pages/scripts/sync-release ${channel} ${version}

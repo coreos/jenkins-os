@@ -161,7 +161,7 @@ bin/cork update \
 sudo rm -rf gce.properties src tmp
 
 enter() {
-        bin/cork enter --experimental -- "$@"
+        bin/cork enter --bind-gpg-agent=false -- "$@"
 }
 
 script() {

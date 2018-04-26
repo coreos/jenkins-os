@@ -107,7 +107,7 @@ timeout=3h
 
 set -o pipefail
 ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" credentials.json
-bin/cork enter --experimental -- gsutil signurl -d "${timeout}" \
+bin/cork enter --bind-gpg-agent=false -- gsutil signurl -d "${timeout}" \
     /mnt/host/source/credentials.json \
     "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/coreos_production_packet_image.bin.bz2" |
 sed -n 's,^.*https://,https://,p' > url.txt

@@ -91,7 +91,7 @@ source .repo/manifests/version.txt
 
 set -o pipefail
 ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" credentials.json
-bin/cork enter --experimental -- gsutil signurl -d 30m \
+bin/cork enter --bind-gpg-agent=false -- gsutil signurl -d 30m \
     /mnt/host/source/credentials.json \
     "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/coreos_production_digitalocean_image.bin.bz2" |
 sed -n 's,^.*https://,https://,p' > url.txt
