@@ -55,12 +55,19 @@ trap 'sudo rm -f coreos_developer_container.bin*' EXIT
 bin/gangue get \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     --verify=true $verify_key \
+    "${DOWNLOAD_ROOT}/boards/${BOARD}/${VERSION}/coreos_production_image_kernel_config.txt"
+
+bin/gangue get \
+    --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+    --verify=true $verify_key \
     "${DOWNLOAD_ROOT}/boards/${BOARD}/${VERSION}/coreos_developer_container.bin.bz2"
 bunzip2 coreos_developer_container.bin.bz2
 
 sudo systemd-nspawn \
-    --bind=/lib/modules \
+    --bind-ro=/lib/modules \
+    --bind-ro="$PWD/coreos_production_image_kernel_config.txt:/boot/config" \
     --image=coreos_developer_container.bin \
+    --tmpfs=/var/tmp \
     /bin/bash -eux << 'EOF'
 emerge-gitclone
 . /usr/share/coreos/release
@@ -70,8 +77,7 @@ then
         git -C /var/lib/portage/coreos-overlay checkout master
 fi
 emerge -gv coreos-sources
-PKGDIR=/tmp PORTAGE_TMPDIR=/tmp ROOT=/tmp emerge -gOv coreos-modules
-cp -f /tmp/usr/boot/config /usr/src/linux/.config
+ln -fns /boot/config /usr/src/linux/.config
 exec make -C /usr/src/linux -j"$(nproc)" modules_prepare V=1
 EOF
 '''  /* Editor quote safety: ' */
