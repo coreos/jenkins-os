@@ -73,13 +73,6 @@
     "MANIFEST_URL": "https://github.com/coreos/manifest.git",
 
     /*
-     * OCI credentials are secret files with permission to run kola
-     * instances in the given project.
-     */
-     "OCI_TEST_CONFIG": "17942f6a-969b-466d-ac46-cd15925c8953",
-     "OCI_TEST_KEY": "f7121197-c5b2-4e67-8529-ff59224bef91",
-
-    /*
      * Packet credentials are secret text with permission to run kola
      * instances in the given project.
      */
