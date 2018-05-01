@@ -96,7 +96,7 @@ stage('Wait') {
     def msg = """The ${params.BOARD} ${version ?: "UNKNOWN"} build is waiting for the boot loader files to be signed for Secure Boot and uploaded to continue.\n
 When all boot loader files are uploaded, go to ${BUILD_URL}input and proceed with the build."""
 
-    trySlackSend color: '#C0C0C0', message: msg
+    trySlackSend color: 'grey', message: msg
     input 'Waiting for the signed UEFI binaries to be ready...'
 }
 

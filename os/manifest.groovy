@@ -287,7 +287,7 @@ do
 done
 '''  /* Editor quote safety: ' */
             }
-            trySlackSend color: '#2020C0', message: readFile('message.txt').trim()
+            trySlackSend color: 'persian', message: readFile('message.txt').trim()
         }
     }
 }
