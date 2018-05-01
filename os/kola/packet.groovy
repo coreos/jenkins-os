@@ -103,7 +103,7 @@ bin/cork update \
     --manifest-url "${MANIFEST_URL}"
 source .repo/manifests/version.txt
 
-timeout=3h
+timeout=4h
 
 set -o pipefail
 ln -f "${GOOGLE_APPLICATION_CREDENTIALS}" credentials.json
