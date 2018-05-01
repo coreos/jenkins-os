@@ -105,7 +105,7 @@ trap 'bin/ore do delete-image \
     --name="jenkins-${BUILD_NUMBER}" \
     --config-file="${DIGITALOCEAN_CREDS}"' EXIT
 
-timeout --signal=SIGQUIT 60m bin/kola run \
+timeout --signal=SIGQUIT 2h bin/kola run \
     --basename="${NAME}" \
     --do-config-file="${DIGITALOCEAN_CREDS}" \
     --do-image="${NAME}" \

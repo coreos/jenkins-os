@@ -62,7 +62,7 @@ trap 'bin/ore gcloud delete-images \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
     "${GCE_NAME}"' EXIT
 
-timeout --signal=SIGQUIT 60m bin/kola run \
+timeout --signal=SIGQUIT 3h bin/kola run \
     --basename="${NAME}" \
     --gce-image="${GCE_NAME}" \
     --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \

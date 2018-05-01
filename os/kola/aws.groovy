@@ -58,7 +58,7 @@ if [[ "${AWS_AMI_TYPE}" == "PV" ]]; then
     instance_type="m3.medium"
 fi
 
-timeout --signal=SIGQUIT 120m bin/kola run \
+timeout --signal=SIGQUIT 3h bin/kola run \
     --parallel=4 \
     --basename="${NAME}" \
     --aws-ami="${AWS_AMI_ID}" \

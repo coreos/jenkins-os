@@ -102,7 +102,7 @@ sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
 sudo cp -t chroot/usr/bin bin/[b-z]*
 
-enter sudo timeout --signal=SIGQUIT 120m kola run \
+enter sudo timeout --signal=SIGQUIT 2h kola run \
     --board="${BOARD}" \
     --parallel=2 \
     --platform=qemu \
