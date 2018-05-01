@@ -106,7 +106,7 @@ exit 0  # Do not return a non-zero $? from above.
         def color = readFile 'status.txt'
         def message = readFile 'notify.txt'
         if (message)
-            slackSend color: color ?: '#C0C0C0', message: """${message}
+            trySlackSend color: color ?: '#C0C0C0', message: """${message}
 Run `update_ebuilds --commit --portage=rsync metadata/glsa` in the SDK to \
 update GLSA definitions."""
     }

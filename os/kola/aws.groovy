@@ -101,5 +101,5 @@ timeout --signal=SIGQUIT 3h bin/kola run \
 currentBuild.result = rc == 0 ? 'SUCCESS' : 'FAILURE'
 
 if (currentBuild.result == 'FAILURE')
-    slackSend color: 'danger',
+    trySlackSend color: 'danger',
               message: "```Kola: AWS-amd64-$AWS_AMI_TYPE Failure: <${BUILD_URL}console|Console> - <${BUILD_URL}artifact/_kola_temp.tar.xz|_kola_temp>\n$message```"

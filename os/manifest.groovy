@@ -287,13 +287,7 @@ do
 done
 '''  /* Editor quote safety: ' */
             }
-
-            String summary = readFile('message.txt').trim()
-            try {
-                slackSend color: '#2020C0', message: summary
-            } catch (NoSuchMethodError err) {
-                echo summary
-            }
+            trySlackSend color: '#2020C0', message: readFile('message.txt').trim()
         }
     }
 }
