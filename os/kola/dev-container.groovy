@@ -67,6 +67,7 @@ sudo systemd-nspawn \
     --bind-ro=/lib/modules \
     --bind-ro="$PWD/coreos_production_image_kernel_config.txt:/boot/config" \
     --image=coreos_developer_container.bin \
+    --machine=coreos-developer-container-$(uuidgen) \
     --tmpfs=/var/tmp \
     /bin/bash -eux << 'EOF'
 emerge-gitclone
