@@ -158,6 +158,10 @@ stage('Downstream') {
     def genBuildPackages = { boardToBuild, minutesToWait ->
         def board = boardToBuild    /* Create a closure with new variables.  */
         def minutes = minutesToWait /* Cute curried closures have bad refs.  */
+        if (params.COREOS_OFFICIAL == '1' && board == 'arm64-usr')
+            return {
+                echo 'The arm64 artifacts are no longer built for releases.'
+            }
         return {
             sleep time: minutes, unit: 'MINUTES'
             build job: 'board/packages-matrix', parameters: [

@@ -43,26 +43,14 @@ node('amd64') {
             withEnv(["CHANNEL=${params.CHANNEL}",
                      "VERSION=${params.VERSION}"]) {
                 sh '''#!/bin/bash -ex
-case "${CHANNEL}" in
-    stable)
-        boards=( amd64-usr )
-        ;;
-    *)
-        boards=( amd64-usr arm64-usr )
-        ;;
-esac
-
-for board in "${boards[@]}"
-do
-        bin/plume release \
-            --debug \
-            --aws-credentials="${AWS_CREDENTIALS}" \
-            --azure-profile="${AZURE_CREDENTIALS}" \
-            --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
-            --board="${board}" \
-            --channel="${CHANNEL}" \
-            --version="${VERSION}"
-done
+bin/plume release \
+    --debug \
+    --aws-credentials="${AWS_CREDENTIALS}" \
+    --azure-profile="${AZURE_CREDENTIALS}" \
+    --gce-json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
+    --board=amd64-usr \
+    --channel="${CHANNEL}" \
+    --version="${VERSION}"
 '''  /* Editor quote safety: ' */
             }
         }
