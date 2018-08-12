@@ -176,7 +176,7 @@ git -C coreos-pages push -f ${forkUrl} ${branch}
                                         sourceBranch: branch,
                                         title: "os: sync ${version}",
                                         message: "From: ${env.BUILD_URL}"
-            slackSend color: '#2020C0',
+            trySlackSend color: 'persian',
                       message: "${version} (${channel}) docs: ${url}"
         }
     }

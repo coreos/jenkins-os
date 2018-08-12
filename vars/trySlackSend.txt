@@ -1,0 +1,6 @@
+The trySlackSend function sends a notification to Slack.  If the Slack
+Notification Plugin is not configured the the notification will be echoed to
+the Jenkins build log.
+
+Takes a string parameter 'message' and optional string parameters 'channel' and
+'color'.

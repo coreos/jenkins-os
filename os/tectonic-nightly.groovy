@@ -146,7 +146,7 @@ node('amd64 && docker') {
 }
 
 if (rc != 0)
-    slackSend color: 'danger',
+    trySlackSend color: 'danger',
               message: "tectonic-nightly failed!\n$BUILD_URL",
               channel: '@slowrie'
 
