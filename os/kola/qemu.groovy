@@ -98,7 +98,6 @@ enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 sudo bin/kola mkimage tmp/coreos_production_image.bin tmp/coreos_modified.bin
 
 # copy all of the latest mantle binaries into the chroot
-sudo cp -t chroot/usr/lib/kola/arm64 bin/arm64/*
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
 sudo cp -t chroot/usr/bin bin/[b-z]*
 

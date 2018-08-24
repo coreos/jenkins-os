@@ -22,9 +22,6 @@ properties([
                     description: 'JSON credentials file for all Azure clouds used by plume',
                     name: 'AZURE_CREDS',
                     required: true),
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to build'),
         credentials(credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
                     defaultValue: '',
                     description: 'Credential ID for SSH Git clone URLs',
@@ -118,7 +115,7 @@ node('coreos && amd64 && sudo') {
                 file(credentialsId: params.GS_DEVEL_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
                 file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
             ]) {
-                withEnv(["BOARD=${params.BOARD}",
+                withEnv(['BOARD=amd64-usr',
                          "COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                          "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
@@ -158,7 +155,7 @@ bin/cork update \
     }
 
     stage('Post-build') {
-        fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
+        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
     }
 }
 
@@ -168,7 +165,6 @@ stage('Downstream') {
         credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
         credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
         credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
-        string(name: 'BOARD', value: params.BOARD),
         credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         credentials(name: 'DIGITALOCEAN_CREDS', value: params.DIGITALOCEAN_CREDS),

@@ -160,7 +160,6 @@ stage('Downstream') {
         credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
         credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
         credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
-        string(name: 'BOARD', value: 'amd64-usr'),
         credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
         string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
         string(name: 'GROUP', value: params.GROUP),

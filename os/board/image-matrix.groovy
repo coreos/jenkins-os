@@ -22,9 +22,6 @@ properties([
                     description: 'JSON credentials file for all Azure clouds used by plume',
                     name: 'AZURE_CREDS',
                     required: true),
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to build'),
         string(name: 'GROUP',
                defaultValue: 'developer',
                description: 'Which release group owns this build'),
@@ -122,7 +119,7 @@ node('coreos && amd64 && sudo') {
                 file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
                 file(credentialsId: params.GS_RELEASE_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
             ]) {
-                withEnv(["BOARD=${params.BOARD}",
+                withEnv(['BOARD=amd64-usr',
                          "COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                          "DOWNLOAD_ROOT=${params.GS_DEVEL_ROOT}",
                          "GROUP=${params.GROUP}",
@@ -160,12 +157,12 @@ bin/cork update \
     }
 
     stage('Post-build') {
-        fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/${params.BOARD}/latest/*"
+        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/amd64-usr/latest/*"
         version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt", returnStdout: true).trim()
         dir('src/build') {
             deleteDir()
         }
-        format_list = readFile "src/scripts/jenkins/formats-${params.BOARD}.txt"
+        format_list = readFile "src/scripts/jenkins/formats-amd64-usr.txt"
         try {
             torcxManifest = readFile 'torcx/torcx_manifest.json'
         } catch (e) {
@@ -183,7 +180,6 @@ stage('Downstream') {
                 credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
                 credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
                 credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
-                string(name: 'BOARD', value: params.BOARD),
                 credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
                 string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
                 credentials(name: 'DIGITALOCEAN_CREDS', value: params.DIGITALOCEAN_CREDS),
@@ -207,28 +203,25 @@ stage('Downstream') {
             ]
         },
         'kola-dev-container': {
-            if (params.BOARD == 'amd64-usr')
-                build job: '../kola/dev-container', propagate: false, parameters: [
-                    string(name: 'BOARD', value: params.BOARD),
-                    credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
-                    string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                    string(name: 'VERSION', value: version),
-                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-                ]
+            build job: '../kola/dev-container', propagate: false, parameters: [
+                credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
+                string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+                text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+                string(name: 'VERSION', value: version),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+            ]
         },
         'kola-qemu': {
-            if (params.BOARD == 'amd64-usr')
-                build job: '../kola/qemu', parameters: [
-                    credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                    credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
-                    string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
-                    string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                    string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                    string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                    text(name: 'TORCX_MANIFEST', value: torcxManifest),
-                    text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                    string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-                ]
+            build job: '../kola/qemu', parameters: [
+                credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+                credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
+                string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+                text(name: 'TORCX_MANIFEST', value: torcxManifest),
+                text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+            ]
         }
 }
