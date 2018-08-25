@@ -4,9 +4,6 @@ properties([
     buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
 
     parameters([
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to test'),
         credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
                     defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',
                     description: '''Credentials ID for a JSON file passed as \
@@ -42,7 +39,7 @@ node('amd64 && coreos && sudo') {
         withCredentials([
             file(credentialsId: params.DOWNLOAD_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
         ]) {
-            withEnv(["BOARD=${params.BOARD}",
+            withEnv(['BOARD=amd64-usr',
                      "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
                      "VERSION=${params.VERSION}"]) {
                 sh '''#!/bin/bash -ex

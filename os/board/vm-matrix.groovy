@@ -22,9 +22,6 @@ properties([
                     description: 'JSON credentials file for all Azure clouds used by plume',
                     name: 'AZURE_CREDS',
                     required: true),
-        choice(name: 'BOARD',
-               choices: "amd64-usr\narm64-usr",
-               description: 'Target board to build'),
         credentials(credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey',
                     defaultValue: '',
                     description: 'Credential ID for SSH Git clone URLs',
@@ -103,7 +100,7 @@ used to verify signed files and Git tags'''),
 
 /* Define downstream testing/prerelease builds for specific formats.  */
 def downstreams = [
-    'ami_vmdk': { if (params.BOARD == 'amd64-usr')
+    'ami_vmdk': {
         build job: '../prerelease/aws', wait: false, parameters: [
             string(name: 'AWS_REGION', value: params.AWS_REGION),
             credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
@@ -116,7 +113,7 @@ def downstreams = [
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
-    'azure': { if (params.BOARD == 'amd64-usr' && params.COREOS_OFFICIAL == '1')
+    'azure': { if (params.COREOS_OFFICIAL == '1')
         build job: '../prerelease/azure', wait: false, parameters: [
             credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
             credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
@@ -126,9 +123,8 @@ def downstreams = [
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
-    'digitalocean': { if (params.BOARD == 'amd64-usr')
+    'digitalocean': {
         build job: '../kola/do', wait: false, parameters: [
-            string(name: 'BOARD', value: params.BOARD),
             credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
             credentials(name: 'DIGITALOCEAN_CREDS', value: params.DIGITALOCEAN_CREDS),
             credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
@@ -141,7 +137,7 @@ def downstreams = [
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
-    'gce': { if (params.BOARD == 'amd64-usr')
+    'gce': {
         build job: '../kola/gce', wait: false, parameters: [
             credentials(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
             string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
@@ -150,9 +146,8 @@ def downstreams = [
             string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
         ]
     },
-    'packet': { if (params.BOARD == 'amd64-usr')
+    'packet': {
         build job: '../kola/packet', wait: false, parameters: [
-            string(name: 'BOARD', value: params.BOARD),
             credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
             credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
             string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
@@ -170,7 +165,6 @@ def downstreams = [
     },
     'qemu_uefi': {
         build job: '../kola/qemu_uefi', wait: false, parameters: [
-            string(name: 'BOARD', value: params.BOARD),
             credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
             credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
             string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
@@ -210,7 +204,7 @@ for (format in format_list) {
                     file(credentialsId: params.GS_RELEASE_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
                     file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
                 ]) {
-                    withEnv(["BOARD=${params.BOARD}",
+                    withEnv(['BOARD=amd64-usr',
                              "COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
                              "DOWNLOAD_ROOT=${params.GS_RELEASE_DOWNLOAD_ROOT}",
                              "FORMAT=${FORMAT}",
@@ -249,7 +243,7 @@ bin/cork update \
             version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt",
                          returnStdout: true).trim()
 
-            fingerprint "chroot/build/${params.BOARD}/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
+            fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
             dir('tmp') {
                 deleteDir()
             }

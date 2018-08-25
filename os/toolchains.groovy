@@ -155,45 +155,30 @@ bin/cork update \
 }
 
 stage('Downstream') {
-    def genBuildPackages = { boardToBuild, minutesToWait ->
-        def board = boardToBuild    /* Create a closure with new variables.  */
-        def minutes = minutesToWait /* Cute curried closures have bad refs.  */
-        if (params.COREOS_OFFICIAL == '1' && board == 'arm64-usr')
-            return {
-                echo 'The arm64 artifacts are no longer built for releases.'
-            }
-        return {
-            sleep time: minutes, unit: 'MINUTES'
-            build job: 'board/packages-matrix', parameters: [
-                string(name: 'AWS_REGION', value: params.AWS_REGION),
-                credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
-                credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
-                credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
-                string(name: 'BOARD', value: board),
-                credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
-                string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
-                string(name: 'GROUP', value: params.GROUP),
-                credentials(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
-                string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
-                credentials(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
-                string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
-                string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
-                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
-                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
-                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
-                credentials(name: 'PACKET_CREDS', value: params.PACKET_CREDS),
-                string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
-                string(name: 'RELEASE_BASE', value: ''),
-                credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
-                string(name: 'SIGNING_USER', value: params.SIGNING_USER),
-                string(name: 'TORCX_PUBLIC_DOWNLOAD_ROOT', value: params.TORCX_PUBLIC_DOWNLOAD_ROOT),
-                string(name: 'TORCX_ROOT', value: params.TORCX_ROOT),
-                text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
-            ]
-        }
-    }
-    parallel failFast: false,
-        'board-packages-matrix-amd64-usr': genBuildPackages('amd64-usr', 0),
-        'board-packages-matrix-arm64-usr': genBuildPackages('arm64-usr', 1)
+    build job: 'board/packages-matrix', parameters: [
+        string(name: 'AWS_REGION', value: params.AWS_REGION),
+        credentials(name: 'AWS_RELEASE_CREDS', value: params.AWS_RELEASE_CREDS),
+        credentials(name: 'AWS_TEST_CREDS', value: params.AWS_TEST_CREDS),
+        credentials(name: 'AZURE_CREDS', value: params.AZURE_CREDS),
+        credentials(name: 'BUILDS_CLONE_CREDS', value: params.BUILDS_CLONE_CREDS),
+        string(name: 'COREOS_OFFICIAL', value: params.COREOS_OFFICIAL),
+        string(name: 'GROUP', value: params.GROUP),
+        credentials(name: 'GS_DEVEL_CREDS', value: params.GS_DEVEL_CREDS),
+        string(name: 'GS_DEVEL_ROOT', value: params.GS_DEVEL_ROOT),
+        credentials(name: 'GS_RELEASE_CREDS', value: params.GS_RELEASE_CREDS),
+        string(name: 'GS_RELEASE_DOWNLOAD_ROOT', value: params.GS_RELEASE_DOWNLOAD_ROOT),
+        string(name: 'GS_RELEASE_ROOT', value: params.GS_RELEASE_ROOT),
+        string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+        string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+        string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
+        credentials(name: 'PACKET_CREDS', value: params.PACKET_CREDS),
+        string(name: 'PACKET_PROJECT', value: params.PACKET_PROJECT),
+        string(name: 'RELEASE_BASE', value: ''),
+        credentials(name: 'SIGNING_CREDS', value: params.SIGNING_CREDS),
+        string(name: 'SIGNING_USER', value: params.SIGNING_USER),
+        string(name: 'TORCX_PUBLIC_DOWNLOAD_ROOT', value: params.TORCX_PUBLIC_DOWNLOAD_ROOT),
+        string(name: 'TORCX_ROOT', value: params.TORCX_ROOT),
+        text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
+        string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
+    ]
 }
