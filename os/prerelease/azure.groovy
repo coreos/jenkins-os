@@ -1,8 +1,6 @@
 #!groovy
 
 properties([
-    buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
-
     parameters([
         credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
                     defaultValue: '7ab88376-e794-4128-b644-41c83c89e76d',

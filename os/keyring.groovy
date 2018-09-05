@@ -62,8 +62,6 @@ EOF
 
 /* Redefine parameters last, so the previous values are the next defaults.  */
 properties([
-    buildDiscarder(logRotator(numToKeepStr: '100')),
-
     parameters([
         text(name: 'FINGERPRINTS',
              defaultValue: fingerprints,

@@ -1,8 +1,6 @@
 #!groovy
 
 properties([
-    buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
-
     parameters([
         choice(name: 'CHANNEL',
                choices: "alpha\nbeta\nstable",

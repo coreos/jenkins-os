@@ -1,11 +1,6 @@
 #!groovy
 
 properties([
-    buildDiscarder(logRotator(artifactDaysToKeepStr: '3',
-                              artifactNumToKeepStr: '3',
-                              daysToKeepStr: '30',
-                              numToKeepStr: '50')),
-
     parameters([
         string(name: 'AWS_REGION',
                defaultValue: 'us-west-2',

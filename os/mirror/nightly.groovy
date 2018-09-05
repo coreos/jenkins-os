@@ -1,11 +1,6 @@
 #!groovy
 
 properties([
-    buildDiscarder(logRotator(artifactDaysToKeepStr: '3',
-                              artifactNumToKeepStr: '3',
-                              daysToKeepStr: '30',
-                              numToKeepStr: '50')),
-
     parameters([
         credentials(credentialType: 'org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl',
                     defaultValue: 'jenkins-coreos-systems-write-5df31bf86df3.json',

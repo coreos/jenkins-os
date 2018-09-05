@@ -1,8 +1,6 @@
 #!groovy
 
 properties([
-    buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
-
     parameters([
         string(name: 'MANIFEST_REF',
                defaultValue: 'master',

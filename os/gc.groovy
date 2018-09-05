@@ -1,8 +1,6 @@
 #!groovy
 
 properties([
-    buildDiscarder(logRotator(daysToKeepStr: '30', numToKeepStr: '50')),
-
     pipelineTriggers([cron('H 20 * * *')]),
 
     parameters([
