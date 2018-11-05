@@ -104,6 +104,7 @@ enter sudo timeout --signal=SIGQUIT 2h kola run \
     --platform=qemu \
     --qemu-bios=/mnt/host/source/tmp/coreos_production_qemu_uefi_efi_code.fd \
     --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
+    --qemu-skip-mangle \
     --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap" \
     --torcx-manifest=/mnt/host/source/torcx_manifest.json
 
