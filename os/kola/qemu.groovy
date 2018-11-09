@@ -94,9 +94,6 @@ bin/cork download-image \
     --verify=true $verify_key
 enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 
-# edit the kernel command-line to save console output
-sudo bin/kola mkimage tmp/coreos_production_image.bin tmp/coreos_modified.bin
-
 # copy all of the latest mantle binaries into the chroot
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
 sudo cp -t chroot/usr/bin bin/[b-z]*
@@ -106,7 +103,7 @@ enter sudo timeout --signal=SIGQUIT 2h kola run \
     --parallel=2 \
     --platform=qemu \
     --qemu-bios=bios-256k.bin \
-    --qemu-image=/mnt/host/source/tmp/coreos_modified.bin \
+    --qemu-image=/mnt/host/source/tmp/coreos_production_image.bin \
     --tapfile="/mnt/host/source/${JOB_NAME##*/}.tap" \
     --torcx-manifest=/mnt/host/source/torcx_manifest.json
 
