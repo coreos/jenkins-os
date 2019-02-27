@@ -187,6 +187,7 @@ fi
 
 # Initialize an SDK without verifying a manifest tag, since this uses a branch.
 bin/cork update \
+    --verify-key=verify.asc \
     --create --downgrade-replace --verbose --force-sync \
     --manifest-branch "${GIT_COMMIT}" \
     --manifest-name "${MANIFEST_NAME}" \

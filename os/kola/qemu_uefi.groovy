@@ -76,6 +76,7 @@ mkdir --mode=0700 "${GNUPGHOME}"
 gpg --import verify.asc
 
 bin/cork update \
+    --verify-key=verify.asc \
     --create --downgrade-replace --verify --verify-signature --verbose \
     --force-sync \
     --manifest-branch "refs/tags/${MANIFEST_TAG}" \
