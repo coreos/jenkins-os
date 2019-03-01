@@ -22,7 +22,7 @@
      * manifest job, when reusing build numbers would cause conflicting
      * branch names in the manifest-builds repository.
      */
-    "BUILD_ID_PREFIX": "jenkins2-",
+    "BUILD_ID_PREFIX": "jenkins3-",
 
     /*
      * The manifest-builds repository holds the manifest files for each
