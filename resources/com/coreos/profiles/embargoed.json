@@ -8,7 +8,7 @@
 
     "AZURE_CREDS": "7ab88376-e794-4128-b644-41c83c89e76d",
 
-    "BUILD_ID_PREFIX": "jenkins2-",
+    "BUILD_ID_PREFIX": "jenkins3-",
 
     "BUILDS_CLONE_URL": "ssh://core@35.197.82.132/coreos/manifest-builds.git",
     "BUILDS_CLONE_CREDS": "3d4319c2-bca1-47c8-a483-2f355c249e30",
