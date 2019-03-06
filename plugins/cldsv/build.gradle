@@ -1,5 +1,5 @@
 plugins {
-    id 'org.jenkins-ci.jpi' version '0.22.0'  // Oldest version tested
+    id 'org.jenkins-ci.jpi' version '0.28.1'
 }
 
 description = 'Render every triggered job run for a Container Linux build'
