@@ -182,7 +182,7 @@ if [[ -n "${LOCAL_MANIFEST}" ]]
 then
         mkdir -p .repo/local_manifests
         echo "${LOCAL_MANIFEST}" > .repo/local_manifests/local.xml
-        COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}+local-${BUILD_NUMBER}"
+        COREOS_BUILD_ID="${BUILD_ID_PREFIX}${MANIFEST_BRANCH}-local-${BUILD_NUMBER}"
 fi
 
 # Initialize an SDK without verifying a manifest tag, since this uses a branch.
