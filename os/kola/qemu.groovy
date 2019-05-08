@@ -109,7 +109,7 @@ enter sudo timeout --signal=SIGQUIT 2h kola run \
 
 sudo rm -rf tmp
 
-if [[ "${COREOS_BUILD_ID}" == *-master-* ]]; then
+if [[ "${COREOS_BUILD_ID}" == *-master-[0-9]* ]]; then
   enter gsutil cp "${DOWNLOAD_ROOT}/boards/${BOARD}/${COREOS_VERSION}/version.txt" \
                   "${DOWNLOAD_ROOT}/boards/${BOARD}/current-master/version.txt"
 fi
