@@ -45,10 +45,9 @@ def amiprops = [:]
 
 node('amd64') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 

@@ -38,23 +38,22 @@ the GOOGLE_APPLICATION_CREDENTIALS value for authing to gcloud & creating a buck
 
 node('amd64') {
     stage('GC') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
-            withCredentials([
-                [$class: 'AmazonWebServicesCredentialsBinding',
-                credentialsId: params.AWS_TEST_CREDS,
-                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
-                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'],
-                file(credentialsId: params.DIGITALOCEAN_CREDS, variable: 'DIGITALOCEAN_CREDS'),
-                file(credentialsId: params.GS_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
-                string(credentialsId: params.PACKET_CREDS, variable: 'PACKET_API_KEY')
+        withCredentials([
+            [$class: 'AmazonWebServicesCredentialsBinding',
+            credentialsId: params.AWS_TEST_CREDS,
+            accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+            secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'],
+            file(credentialsId: params.DIGITALOCEAN_CREDS, variable: 'DIGITALOCEAN_CREDS'),
+            file(credentialsId: params.GS_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),
+            string(credentialsId: params.PACKET_CREDS, variable: 'PACKET_API_KEY')
+        ]) {
+            withEnv([
+                "UPLOAD_ROOT=${params.UPLOAD_ROOT}",
             ]) {
-                withEnv([
-                    "UPLOAD_ROOT=${params.UPLOAD_ROOT}",
-                ]) {
                 sh '''#!/bin/bash -ex
 
 timeout --signal=SIGQUIT 60m bin/ore aws gc

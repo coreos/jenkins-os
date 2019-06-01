@@ -19,13 +19,9 @@ properties([
 
 node('coreos && amd64 && sudo') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'TriggeredBuildSelector',
-                         allowUpstreamDependencies: true,
-                         fallbackToLastSuccessful: true,
-                         upstreamFilterStrategy: 'UseGlobalSetting']])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         withCredentials([
             file(credentialsId: params.GCS_CREDS, variable: 'GOOGLE_APPLICATION_CREDENTIALS'),

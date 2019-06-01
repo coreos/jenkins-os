@@ -89,23 +89,15 @@ node('coreos && amd64 && sudo') {
     }
 
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'TriggeredBuildSelector',
-                         allowUpstreamDependencies: true,
-                         fallbackToLastSuccessful: true,
-                         upstreamFilterStrategy: 'UseGlobalSetting']])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         if (profile.VERIFY_KEYRING.startsWith("artifact:")) {
             ArrayList<String> keyringSpec = profile.VERIFY_KEYRING.split(':')
-            step([$class: 'CopyArtifact',
-                  fingerprintArtifacts: true,
-                  projectName: keyringSpec[1],
-                  selector: [$class: 'TriggeredBuildSelector',
-                             allowUpstreamDependencies: true,
-                             fallbackToLastSuccessful: true,
-                             upstreamFilterStrategy: 'UseGlobalSetting']])
+            copyArtifacts fingerprintArtifacts: true,
+                          projectName: keyringSpec[1],
+                          selector: lastSuccessful()
             keyring = readFile(keyringSpec[2] ?: 'keyring.asc')
         } else {
             keyring = profile.VERIFY_KEYRING

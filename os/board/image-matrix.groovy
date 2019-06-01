@@ -106,10 +106,9 @@ String version = ''
 
 node('coreos && amd64 && sudo') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 

@@ -191,10 +191,9 @@ for (format in format_list) {
         def version = ''
 
         node('coreos && amd64 && sudo') {
-            step([$class: 'CopyArtifact',
-                  fingerprintArtifacts: true,
-                  projectName: '/mantle/master-builder',
-                  selector: [$class: 'StatusBuildSelector', stable: false]])
+            copyArtifacts fingerprintArtifacts: true,
+                          projectName: '/mantle/master-builder',
+                          selector: lastSuccessful()
 
             writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
@@ -240,8 +239,7 @@ bin/cork update \
                 }
             }
 
-            version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt",
-                         returnStdout: true).trim()
+            version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt", returnStdout: true).trim()
 
             fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,tmp/*"
             dir('tmp') {

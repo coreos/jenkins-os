@@ -31,10 +31,9 @@ def rc = 0
 
 node('amd64') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'torcx_manifest.json', text: params.TORCX_MANIFEST ?: ''
 
