@@ -295,6 +295,8 @@ done
                 echo summary
             }
         }
+
+        sh 'sudo rm -fr .cache/*/*'
     }
 }
 

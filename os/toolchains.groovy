@@ -156,6 +156,7 @@ bin/cork update \
 
     stage('Post-build') {
         fingerprint 'src/build/catalyst/packages/coreos-toolchains/**/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2'
+        sh 'sudo rm -rf src/build'
     }
 }
 

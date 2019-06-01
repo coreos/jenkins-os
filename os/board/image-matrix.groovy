@@ -159,11 +159,9 @@ bin/cork update \
     stage('Post-build') {
         fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/amd64-usr/latest/*,torcx/torcx_manifest.json,torcx/pkgs/*/*/*/*.torcx.tgz"
         version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt", returnStdout: true).trim()
-        dir('src/build') {
-            deleteDir()
-        }
         format_list = readFile "src/scripts/jenkins/formats-amd64-usr.txt"
         torcxManifest = readFile 'torcx/torcx_manifest.json'
+        sh 'sudo rm -rf .cache/*/* chroot/build src/build torcx'
     }
 }
 
