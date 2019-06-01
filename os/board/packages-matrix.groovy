@@ -155,7 +155,7 @@ bin/cork update \
     }
 
     stage('Post-build') {
-        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
+        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/torcx/*/latest/torcx_manifest.json,src/build/torcx/pkgs/*/*/*/*.torcx.tgz"
     }
 }
 
