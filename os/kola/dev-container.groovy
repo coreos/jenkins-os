@@ -14,13 +14,16 @@ the Google Storage URL, requires read permission''',
         string(name: 'DOWNLOAD_ROOT',
                defaultValue: 'gs://builds.developer.core-os.net',
                description: 'URL prefix where image files are downloaded'),
+        string(name: 'MANIFEST_NAME',
+               defaultValue: 'release.xml'),
+        string(name: 'MANIFEST_TAG',
+               defaultValue: ''),
+        string(name: 'MANIFEST_URL',
+               defaultValue: 'https://github.com/coreos/manifest-builds.git'),
         text(name: 'VERIFY_KEYRING',
              defaultValue: '',
              description: '''ASCII-armored keyring containing the public keys \
 used to verify signed files and Git tags'''),
-        string(name: 'VERSION',
-               defaultValue: '',
-               description: 'OS container version to test'),
         string(name: 'PIPELINE_BRANCH',
                defaultValue: 'master',
                description: 'Branch to use for fetching the pipeline jobs')
@@ -29,10 +32,9 @@ used to verify signed files and Git tags'''),
 
 node('amd64 && coreos && sudo') {
     stage('Test') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
@@ -41,13 +43,34 @@ node('amd64 && coreos && sudo') {
         ]) {
             withEnv(['BOARD=amd64-usr',
                      "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
-                     "VERSION=${params.VERSION}"]) {
+                     "MANIFEST_NAME=${params.MANIFEST_NAME}",
+                     "MANIFEST_TAG=${params.MANIFEST_TAG}",
+                     "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                 sh '''#!/bin/bash -ex
 
-sudo rm -f coreos_developer_container.bin*
-trap 'sudo rm -f coreos_developer_container.bin*' EXIT
+sudo rm -f coreos_developer_container.bin* gnupg manifest portage
+trap 'sudo rm -f coreos_developer_container.bin* gnupg manifest portage' EXIT
 
-[ -s verify.asc ] && verify_key=--verify-key=verify.asc || verify_key=
+verify_key=
+if [ -s verify.asc ]
+then
+        verify_key=--verify-key=verify.asc
+        export GNUPGHOME="${PWD}/gnupg"
+        gpg2 --import verify.asc
+fi
+
+git clone --branch="${MANIFEST_TAG}" --depth=1 "${MANIFEST_URL}" manifest
+git tag --verify "${MANIFEST_TAG}"
+VERSION=$(sed -n 's/^COREOS_VERSION=//p' manifest/version.txt)
+
+for repo in coreos/portage-stable coreos/coreos-overlay
+do
+        commit=$(sed -n "\\, name=\\"${repo}\\","'s/.* revision="\\([^"]*\\)".*/\\1/p' "manifest/${MANIFEST_NAME}")
+        upstream=$(sed -n "\\, name=\\"${repo}\\","'s/.* upstream="\\([^"]*\\)".*/\\1/p' "manifest/${MANIFEST_NAME}")
+        git clone "${MANIFEST_URL%/*/*}/${repo}.git" "portage/${repo##*/}"  # Assume default remote is "..".
+        git -C "portage/${repo##*/}" fetch origin "${upstream}"
+        git -C "portage/${repo##*/}" checkout "${commit}"
+done
 
 bin/gangue get \
     --json-key="${GOOGLE_APPLICATION_CREDENTIALS}" \
@@ -61,6 +84,7 @@ bin/gangue get \
 bunzip2 coreos_developer_container.bin.bz2
 
 sudo systemd-nspawn \
+    --bind="$PWD/portage:/var/lib/portage" \
     --bind-ro=/lib/modules \
     --bind-ro="$PWD/coreos_production_image_kernel_config.txt:/boot/config" \
     --image=coreos_developer_container.bin \
@@ -68,13 +92,6 @@ sudo systemd-nspawn \
     --tmpfs=/usr/src \
     --tmpfs=/var/tmp \
     /bin/bash -eux << 'EOF'
-emerge-gitclone
-. /usr/share/coreos/release
-if [[ $COREOS_RELEASE_VERSION =~ master ]]
-then
-        git -C /var/lib/portage/portage-stable checkout master
-        git -C /var/lib/portage/coreos-overlay checkout master
-fi
 emerge -gv coreos-sources
 ln -fns /boot/config /usr/src/linux/.config
 exec make -C /usr/src/linux -j"$(nproc)" modules_prepare V=1

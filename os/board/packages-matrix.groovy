@@ -103,10 +103,9 @@ used to verify signed files and Git tags'''),
 
 node('coreos && amd64 && sudo') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
@@ -155,7 +154,8 @@ bin/cork update \
     }
 
     stage('Post-build') {
-        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2"
+        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/torcx/*/latest/torcx_manifest.json,src/build/torcx/pkgs/*/*/*/*.torcx.tgz"
+        sh 'sudo rm -rf .cache/*/* chroot/build src/build'
     }
 }
 

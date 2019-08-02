@@ -101,15 +101,11 @@ String format_list = ''
 /* Read the torcx manifest file, if one is used.  */
 String torcxManifest = ''
 
-/* Read the version to skip fetching the manifest in downstream jobs.  */
-String version = ''
-
 node('coreos && amd64 && sudo') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
@@ -157,18 +153,10 @@ bin/cork update \
     }
 
     stage('Post-build') {
-        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/amd64-usr/latest/*"
-        version = sh(script: "sed -n 's/^COREOS_VERSION=//p' .repo/manifests/version.txt", returnStdout: true).trim()
-        dir('src/build') {
-            deleteDir()
-        }
+        fingerprint "chroot/build/amd64-usr/var/lib/portage/pkgs/*/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2,src/build/images/amd64-usr/latest/*,torcx/torcx_manifest.json,torcx/pkgs/*/*/*/*.torcx.tgz"
         format_list = readFile "src/scripts/jenkins/formats-amd64-usr.txt"
-        try {
-            torcxManifest = readFile 'torcx/torcx_manifest.json'
-        } catch (e) {
-            // Drop this exception after 1520 is stable.
-            echo "Reading the torcx manifest failed, ignoring: ${e}"
-        }
+        torcxManifest = readFile 'torcx/torcx_manifest.json'
+        sh 'sudo rm -rf .cache/*/* chroot/build src/build torcx'
     }
 }
 
@@ -206,8 +194,10 @@ stage('Downstream') {
             build job: '../kola/dev-container', propagate: false, parameters: [
                 credentials(name: 'DOWNLOAD_CREDS', value: params.GS_RELEASE_CREDS),
                 string(name: 'DOWNLOAD_ROOT', value: params.GS_RELEASE_ROOT),
+                string(name: 'MANIFEST_NAME', value: params.MANIFEST_NAME),
+                string(name: 'MANIFEST_TAG', value: params.MANIFEST_TAG),
+                string(name: 'MANIFEST_URL', value: params.MANIFEST_URL),
                 text(name: 'VERIFY_KEYRING', value: params.VERIFY_KEYRING),
-                string(name: 'VERSION', value: version),
                 string(name: 'PIPELINE_BRANCH', value: params.PIPELINE_BRANCH)
             ]
         },

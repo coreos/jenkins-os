@@ -30,10 +30,9 @@ properties([
 
 node('amd64') {
     stage('Release') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         withCredentials([
             file(credentialsId: params.AWS_RELEASE_CREDS, variable: 'AWS_CREDENTIALS'),

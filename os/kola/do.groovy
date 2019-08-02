@@ -46,10 +46,9 @@ def rc = 0
 
 node('coreos && amd64 && sudo') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'StatusBuildSelector', stable: false]])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'torcx_manifest.json', text: params.TORCX_MANIFEST ?: ''
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''

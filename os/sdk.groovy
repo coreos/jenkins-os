@@ -50,13 +50,9 @@ used to verify signed files and Git tags'''),
 
 node('coreos && amd64 && sudo') {
     stage('Build') {
-        step([$class: 'CopyArtifact',
-              fingerprintArtifacts: true,
-              projectName: '/mantle/master-builder',
-              selector: [$class: 'TriggeredBuildSelector',
-                         allowUpstreamDependencies: true,
-                         fallbackToLastSuccessful: true,
-                         upstreamFilterStrategy: 'UseGlobalSetting']])
+        copyArtifacts fingerprintArtifacts: true,
+                      projectName: '/mantle/master-builder',
+                      selector: lastSuccessful()
 
         writeFile file: 'verify.asc', text: params.VERIFY_KEYRING ?: ''
 
@@ -103,5 +99,6 @@ bin/cork update \
 
     stage('Post-build') {
         fingerprint 'src/build/catalyst/packages/coreos-sdk/**/*.tbz2,chroot/var/lib/portage/pkgs/*/*.tbz2'
+        sh 'sudo rm -fr src/build'
     }
 }
