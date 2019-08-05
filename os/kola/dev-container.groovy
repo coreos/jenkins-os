@@ -48,19 +48,20 @@ node('amd64 && coreos && sudo') {
                      "MANIFEST_URL=${params.MANIFEST_URL}"]) {
                 sh '''#!/bin/bash -ex
 
-sudo rm -f coreos_developer_container.bin* gnupg manifest portage
-trap 'sudo rm -f coreos_developer_container.bin* gnupg manifest portage' EXIT
+sudo rm -fr coreos_developer_container.bin* gnupg manifest portage
+trap 'sudo rm -fr coreos_developer_container.bin* gnupg manifest portage' EXIT
 
 verify_key=
 if [ -s verify.asc ]
 then
         verify_key=--verify-key=verify.asc
         export GNUPGHOME="${PWD}/gnupg"
+        mkdir -pm 0700 "${GNUPGHOME}"
         gpg2 --import verify.asc
 fi
 
 git clone --branch="${MANIFEST_TAG}" --depth=1 "${MANIFEST_URL}" manifest
-git tag --verify "${MANIFEST_TAG}"
+git -C manifest tag --verify "${MANIFEST_TAG}"
 VERSION=$(sed -n 's/^COREOS_VERSION=//p' manifest/version.txt)
 
 for repo in coreos/portage-stable coreos/coreos-overlay
