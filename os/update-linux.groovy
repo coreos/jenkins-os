@@ -5,7 +5,8 @@ properties([
     pipelineTriggers([pollSCM('H H/6 * * *')])
 ])
 
-def overlayPR = ''
+def channelRelease = [:]
+def channelPR = [:]
 def versionNew = ''
 def versionOld = ''
 
@@ -106,16 +107,27 @@ git push --force 'ssh://git@github.com/coreosbot/linux.git' "v${latest}-coreos"
         }
 
         /*
-         * Update the overlay's kernel ebuilds in master and push to coreosbot.
+         * Update the overlay's kernel ebuilds and push to coreosbot.
          */
         stage('Branch Overlay') {
-            sh """#!/bin/bash -ex
-declare -r current=${versionOld} latest=${versionNew} branch=linux-${versionNew}
+            for (branch in ['master', 'alpha', 'beta']) {
+                if (branch != 'master')
+                    channelRelease[branch] = sh(returnStdout: true, script: """curl -Ls https://coreos.com/releases/releases-${branch}.json | sed -n '/:/{s/[^0-9]*"//;s/".*//;p;q;}'""").trim()
+
+                sh """#!/bin/bash -ex
+branch=${branch.replace('master', 'linux')}-${versionNew}
+latest=${versionNew}
+manifest=${branch == 'master' ? 'master' : "build-${channelRelease[branch].split(/[.]/)[0]}"}
 cd src/third_party/coreos-overlay
 """ + '''
 function enter() ( cd ../../.. ; exec bin/cork enter -- "$@" )
 
-# Start a working branch for the update (with current metadata).
+# Reset all repositories to match the channel's commits.
+enter /usr/bin/repo init -b "$manifest"
+enter /usr/bin/repo sync -d
+current=$(sed -n 's/^DIST patch-\\(4.19.[0-9]*\\).*/\\1/p' sys-kernel/coreos-sources/Manifest)
+
+# Start a working overlay branch for the update (with current metadata).
 git checkout -B "${branch}"
 git rm -fr metadata/md5-cache
 enter /mnt/host/source/src/scripts/update_metadata --commit
@@ -152,6 +164,7 @@ git add sys-kernel/coreos-*
 git commit -am "sys-kernel/coreos-sources: Bump ${current} to ${latest}"
 git push --force 'ssh://git@github.com/coreosbot/coreos-overlay.git' "${branch}"
 '''
+            }
         }
     }
 }
@@ -160,6 +173,8 @@ git push --force 'ssh://git@github.com/coreosbot/coreos-overlay.git' "${branch}"
  * Create pull requests with the new branches and alert Slack.
  */
 stage('PR') {
+    def overlayURL = [:]
+
     withCredentials([string(credentialsId: '2b710187-52cc-4e5b-a020-9cae59519baa', variable: 'token')]) {
         def linuxURL = createPullRequest token: token,
                                          upstreamBranch: "v${versionNew}-coreos",
@@ -168,27 +183,40 @@ stage('PR') {
                                          sourceBranch: "v${versionNew}-coreos",
                                          title: "Rebase ${versionOld} patches onto ${versionNew}",
                                          message: "${env.BUILD_URL}"
-        def overlayURL = createPullRequest token: token,
-                                           upstreamBranch: 'master',
-                                           upstreamProject: 'coreos/coreos-overlay',
-                                           sourceOwner: 'coreosbot',
-                                           sourceBranch: "linux-${versionNew}",
-                                           title: "Upgrade Linux ${versionOld} to ${versionNew}",
-                                           message: "coreos/linux#${"${linuxURL}".split('/')[-1]}"
+        overlayURL['master'] = createPullRequest token: token,
+                                                 upstreamBranch: 'master',
+                                                 upstreamProject: 'coreos/coreos-overlay',
+                                                 sourceOwner: 'coreosbot',
+                                                 sourceBranch: "linux-${versionNew}",
+                                                 title: "Upgrade Linux ${versionOld} to ${versionNew}",
+                                                 message: "coreos/linux#${"${linuxURL}".split('/')[-1]}"
+        channelPR['master'] = "${overlayURL['master']}".split('/')[-1]
+        for (channel in ['alpha', 'beta']) {
+            overlayURL[channel] = createPullRequest token: token,
+                                                    upstreamBranch: "build-${channelRelease[channel].split(/[.]/)[0]}",
+                                                    upstreamProject: 'coreos/coreos-overlay',
+                                                    sourceOwner: 'coreosbot',
+                                                    sourceBranch: "${channel}-${versionNew}",
+                                                    title: "Upgrade Linux in ${channel} to ${versionNew}",
+                                                    message: "coreos/linux#${"${linuxURL}".split('/')[-1]}"
+            channelPR[channel] = "${overlayURL[channel]}".split('/')[-1]
+        }
+
         slackSend color: 'good', message: """\
-The Linux ${versionNew} update is building on master!
+The Linux ${versionNew} update is building!
 ${env.BUILD_URL}cldsv
 ${linuxURL}
-${overlayURL}"""
-        overlayPR = "${overlayURL}".split('/')[-1]
+${overlayURL['master']} (master)
+${overlayURL['alpha']} (alpha)
+${overlayURL['beta']} (beta)"""
     }
 }
 
 /*
- * Run a test build of master with the new kernel.
+ * Run a test build of each channel with the new kernel.
  */
 stage('Test') {
-    build job: 'manifest', propagate: false, parameters: [
+    build job: 'manifest', propagate: false, wait: true, parameters: [
         string(name: 'MANIFEST_REF', value: 'master'),
         string(name: 'RELEASE_BASE', value: 'master'),
         text(name: 'LOCAL_MANIFEST', value: """\
@@ -198,8 +226,23 @@ stage('Test') {
  <project \
 name="coreos/coreos-overlay" \
 path="src/third_party/coreos-overlay" \
-revision="refs/pull/${overlayPR}/head"/>
+revision="refs/pull/${channelPR['master']}/head"/>
 </manifest>
 """),
     ]
+    for (channel in ['alpha', 'beta'])
+        build job: 'manifest', propagate: false, wait: true, parameters: [
+            string(name: 'MANIFEST_REF', value: "build-${channelRelease[channel].split(/[.]/)[0]}"),
+            string(name: 'RELEASE_BASE', value: channelRelease[channel]),
+            text(name: 'LOCAL_MANIFEST', value: """\
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest>
+ <remove-project name="coreos/coreos-overlay"/>
+ <project \
+name="coreos/coreos-overlay" \
+path="src/third_party/coreos-overlay" \
+revision="refs/pull/${channelPR[channel]}/head"/>
+</manifest>
+"""),
+        ]
 }
