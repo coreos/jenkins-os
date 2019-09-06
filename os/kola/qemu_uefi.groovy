@@ -95,7 +95,8 @@ enter lbunzip2 -k -f /mnt/host/source/tmp/coreos_production_image.bin.bz2
 
 # copy all of the latest mantle binaries into the chroot
 sudo cp -t chroot/usr/lib/kola/amd64 bin/amd64/*
-sudo cp -t chroot/usr/bin bin/[b-z]*
+# skip copying architecture folders (amd64, arm64, s390x)
+sudo cp -t chroot/usr/bin bin/[b-rt-z]*
 
 enter sudo timeout --signal=SIGQUIT 2h kola run \
     --board="${BOARD}" \
