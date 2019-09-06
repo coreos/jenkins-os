@@ -115,9 +115,10 @@ timeout --signal=SIGQUIT "${timeout}" bin/kola run \
     --packet-api-key="${PACKET_API_KEY}" \
     --packet-facility=ewr1 \
     --packet-image-url="$(<url.txt)" \
+    --packet-plan c1.small \
     --packet-project="${PACKET_PROJECT}" \
     --packet-storage-url="${UPLOAD_ROOT}/mantle/packet" \
-    --parallel=4 \
+    --parallel=2 \
     --platform=packet \
     --tapfile="${JOB_NAME##*/}.tap" \
     --torcx-manifest=torcx_manifest.json
