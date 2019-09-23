@@ -230,7 +230,7 @@ revision="refs/pull/${channelPR['master']}/head"/>
 </manifest>
 """),
     ]
-    for (channel in ['alpha'])
+    for (channel in ['alpha', 'beta'])
         build job: 'manifest', propagate: false, wait: true, parameters: [
             string(name: 'MANIFEST_REF', value: "build-${channelRelease[channel].split(/[.]/)[0]}"),
             string(name: 'RELEASE_BASE', value: channelRelease[channel]),
