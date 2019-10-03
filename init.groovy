@@ -160,7 +160,7 @@ createPipeline('master-builder',
                createFolder('mantle'),
                'Build mantle from master for the other jobs.',
                'https://github.com/coreos/mantle.git',
-               'master',
+               'cl',
                'Jenkinsfile',
                'master')
 
