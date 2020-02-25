@@ -69,6 +69,10 @@ node('coreos && amd64 && sudo') {
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
 
+export GIT_CONFIG=$PWD/.gitconfig
+git config user.name "Jenkins OS"
+git config user.email "team-os@coreos.com"
+
 # The build may not be started without a tag value.
 [ -n "${MANIFEST_TAG}" ]
 
