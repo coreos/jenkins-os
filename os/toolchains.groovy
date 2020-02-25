@@ -115,16 +115,16 @@ node('coreos && amd64 && sudo') {
                 file(credentialsId: params.SIGNING_CREDS, variable: 'GPG_SECRET_KEY_FILE'),
             ]) {
                 withEnv(["COREOS_OFFICIAL=${params.COREOS_OFFICIAL}",
+                         "GIT_AUTHOR_EMAIL=team-os@coreos.com",
+                         "GIT_AUTHOR_NAME=Jenkins OS",
+                         "GIT_COMMITTER_EMAIL=team-os@coreos.com",
+                         "GIT_COMMITTER_NAME=Jenkins OS",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}",
                          "SIGNING_USER=${params.SIGNING_USER}",
                          "UPLOAD_ROOT=${params.GS_DEVEL_ROOT}"]) {
                     sh '''#!/bin/bash -ex
-
-export GIT_CONFIG=$PWD/.gitconfig
-git config user.name "Jenkins OS"
-git config user.email "team-os@coreos.com"
 
 # The build may not be started without a tag value.
 [ -n "${MANIFEST_TAG}" ]
