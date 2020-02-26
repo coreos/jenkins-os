@@ -56,6 +56,10 @@ node('amd64 && kvm && sudo') {
             ]) {
                 withEnv(["BOARD=amd64-usr",
                          "DOWNLOAD_ROOT=${params.DOWNLOAD_ROOT}",
+                         "GIT_AUTHOR_EMAIL=team-os@coreos.com",
+                         "GIT_AUTHOR_NAME=Jenkins OS",
+                         "GIT_COMMITTER_EMAIL=team-os@coreos.com",
+                         "GIT_COMMITTER_NAME=Jenkins OS",
                          "MANIFEST_NAME=${params.MANIFEST_NAME}",
                          "MANIFEST_TAG=${params.MANIFEST_TAG}",
                          "MANIFEST_URL=${params.MANIFEST_URL}"]) {
