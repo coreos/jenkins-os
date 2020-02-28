@@ -39,6 +39,7 @@ def branch = "build-${version.split(/\./)[0]}"
 def latest = [auto: channel == 'alpha'].withDefault{it == 'yes'}[params.LATEST]
 
 if ((channel != 'alpha' || version =~ '\\d\\.[1-9]\\d*\\.\\d+') && base == '') {
+    println 'Missing BASE_VERSION parameter for non-alpha or branched alpha build!'
     currentBuild.result = 'FAILURE'
     return
 }
