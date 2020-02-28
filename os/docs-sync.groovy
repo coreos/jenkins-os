@@ -59,6 +59,11 @@ node('amd64 && coreos && sudo') {
                       projectName: '/os/keyring',
                       selector: lastSuccessful()
         sh '''#!/bin/bash -ex
+export GIT_AUTHOR_EMAIL="team-os@coreos.com"
+export GIT_AUTHOR_NAME="Jenkins OS"
+export GIT_COMMITTER_EMAIL="team-os@coreos.com"
+export GIT_COMMITTER_NAME="Jenkins OS"
+
 # Set up GPG for verifying manifest tags.
 export GNUPGHOME="${PWD}/gnupg"
 rm -fr "${GNUPGHOME}"
@@ -83,10 +88,16 @@ bin/cork create \
         /* The git step ignores the sshagent environment, so script it.  */
         stage('SCM') {
             sh """#!/bin/bash -ex
+export GIT_AUTHOR_EMAIL="team-os@coreos.com"
+export GIT_AUTHOR_NAME="Jenkins OS"
+export GIT_COMMITTER_EMAIL="team-os@coreos.com"
+export GIT_COMMITTER_NAME="Jenkins OS"
+
 rm -fr coreos-pages pages
 git clone ${docsUrl} coreos-pages
 test -d coreos-pages/_os/${base ?: '.'}  # sanity check
 git clone --depth=1 ${pagesUrl} pages
+# this should be redundant with the above, but just leave it to be safe
 git -C coreos-pages config user.name '${gitAuthor}'
 git -C coreos-pages config user.email '${gitEmail}'
 git -C coreos-pages checkout -B ${branch}
@@ -96,6 +107,11 @@ git -C coreos-pages checkout -B ${branch}
         stage('Build') {
             if (base == '')
                 sh '''#!/bin/bash -ex
+export GIT_AUTHOR_EMAIL="team-os@coreos.com"
+export GIT_AUTHOR_NAME="Jenkins OS"
+export GIT_COMMITTER_EMAIL="team-os@coreos.com"
+export GIT_COMMITTER_NAME="Jenkins OS"
+
 bin/cork enter --bind-gpg-agent=false -- \
     cargo build --package=sync --release --verbose \
         --manifest-path=/mnt/host/source/pages/sync/Cargo.toml
@@ -130,6 +146,11 @@ git -C coreos-pages commit -am "os: prune old ${channel} releases" || :
                      variable: 'GOOGLE_APPLICATION_CREDENTIALS')
             ]) {
                 sh """#!/bin/bash -ex
+export GIT_AUTHOR_EMAIL="team-os@coreos.com"
+export GIT_AUTHOR_NAME="Jenkins OS"
+export GIT_COMMITTER_EMAIL="team-os@coreos.com"
+export GIT_COMMITTER_NAME="Jenkins OS"
+
 cp "\${GOOGLE_APPLICATION_CREDENTIALS}" account.json && chmod 0600 account.json
 trap 'shred -u account.json' EXIT
 bin/cork enter --bind-gpg-agent=false -- /bin/bash -ex << 'EOF'
